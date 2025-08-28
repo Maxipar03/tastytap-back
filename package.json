@@ -2,9 +2,9 @@
   "name": "tastytap",
   "version": "1.0.0",
   "description": "Order restaurant app (Backend)",
-  "main": "src/server",
+  "main": "dist/server.js",
   "scripts": {
-    "start": "node dist/server.js",
+    "start": "tsx src/server.ts",
     "dev": "tsx watch src/server.ts",
     "build": "tsc",
     "test": "jest --detectOpenHandles"
