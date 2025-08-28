@@ -1,0 +1,32 @@
+{
+  "compilerOptions": {
+
+    "outDir": "./dist",
+
+    "module": "NodeNext",
+    "target": "ES2020",
+    "lib": ["ES2020"],
+    "types": ["node", "express"],
+
+    "sourceMap": true,
+    "declaration": true,
+    "declarationMap": true,
+
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+
+    "strict": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true,
+
+    "allowJs": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true
+  },
+  "ts-node": {
+    "esm": true
+  },
+  "include": ["src/**/*", "__test__/**/*"],
+  "exclude": ["node_modules", "dist"]
+}
