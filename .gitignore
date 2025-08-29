@@ -10,6 +10,8 @@ yarn-error.log*
 .env.development.local
 .env.test.local
 .env.production.local
+MEJORAS_COMPLETAS.md
+MEJORAS_MANEJO_ERRORES.md
 
 # Archivos de compilación
 dist/
@@ -49,3 +51,4 @@ uploads/
 
 # Archivos de configuración local
 config/local.json
+

@@ -25,7 +25,7 @@ class UserServices {
             const userExist = await this.getByEmail(email);
             if (!userExist || userExist.isGoogle || !userExist.password) throw new BadRequestError("Las credenciales son incorrectas");
 
-            const validPassword = isValidPassword(password, userExist.password);
+            const validPassword = await isValidPassword(password, userExist.password);
             if (!validPassword) throw new BadRequestError("Las credenciales son incorrectas");
             
             return userExist;
@@ -44,12 +44,11 @@ class UserServices {
 
             if (!userData.isGoogle) {
                 if (!password) throw new BadRequestError("La contraseña es requerida");
-                userData.password = createHash(password);
+                userData.password = await createHash(password);
             }
 
             const response = await this.dao.create(userData);
-
-            if (!response) throw new CustomError("Error al crear el usuario", 500);
+            
             return response;
         } catch (error) {
             console.error(error);

@@ -2,6 +2,7 @@ import MongoDao from "./mongoDao.js";
 import { OrderModel } from "./models/orderModel.js";
 import { OrderDB } from "../../types/order.js";
 import { CreateOrderDto } from "../../DTO/orderDto.js";
+import { BadRequestError } from "../../utils/customError.js";
 import { OrderFilters } from "../../types/order.js";
 import { Model } from "mongoose";
 import { Types } from "mongoose";
@@ -13,6 +14,9 @@ class OrderMongoDao extends MongoDao<OrderDB, CreateOrderDto> {
 
     updateStatus = async (itemId: string | Types.ObjectId, orderId: string | Types.ObjectId, newStatus: string): Promise<OrderDB | null> => {
         try {
+
+            if (!Types.ObjectId.isValid(orderId) || !Types.ObjectId.isValid(itemId)) throw new BadRequestError("ID inválido");
+
             const updatedOrder = await this.model.findOneAndUpdate(
                 {
                     _id: orderId,
@@ -37,6 +41,9 @@ class OrderMongoDao extends MongoDao<OrderDB, CreateOrderDto> {
 
     getByRestaurantId = async (restaurant: string | Types.ObjectId,  filters: OrderFilters): Promise<OrderDB[]> => {
         try {
+
+            if (!Types.ObjectId.isValid(restaurant)) throw new BadRequestError("ID inválido");
+
             // 🆕 Construir el objeto de consulta dinámicamente
             const query: any = { restaurant: restaurant };
 
@@ -87,6 +94,7 @@ class OrderMongoDao extends MongoDao<OrderDB, CreateOrderDto> {
 
     getByUserId = async (userId: string | Types.ObjectId): Promise<OrderDB[]> => {
         try {
+            if (!Types.ObjectId.isValid(userId)) throw new BadRequestError("ID inválido");
             return (await this.model.find({ clientId: userId }).lean()) as OrderDB[];
         } catch (error) {
             console.error("Error fetching orders by restaurant:", error);
@@ -96,6 +104,7 @@ class OrderMongoDao extends MongoDao<OrderDB, CreateOrderDto> {
 
     getBySeatId = async (seatId: string | Types.ObjectId): Promise<OrderDB[]> => {
         try {
+            if (!Types.ObjectId.isValid(seatId)) throw new BadRequestError("ID inválido");
             const orders = await this.model.find({ seatId }).populate("items.food", "name price");
             return orders as OrderDB[];
         } catch (error) {

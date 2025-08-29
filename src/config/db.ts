@@ -1,9 +1,12 @@
 import { connect } from "mongoose";
 import config from "./config.js";
+import { NotFoundError } from "../utils/customError.js";
 
 export const initMongoDB = async (): Promise<void> => {
     try {
-        await connect(config.MONGODB_URI as string);
+        const uri = config.MONGODB_URI as string;
+        if(!uri) throw new NotFoundError("MONGODB_URI no está configurado");
+        await connect(uri);
         console.log("Conexión a MongoDB establecida correctamente");
     } catch (error) {
         const err = error as Error;

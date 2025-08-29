@@ -22,6 +22,17 @@ declare global {
             seatData?: { token: string };
             mesaData?: QRCodePayload;
             user?: UserPayload;
+            file?: {
+                fieldname: string;
+                originalname: string;
+                encoding: string;
+                mimetype: string;
+                size: number;
+                destination: string;
+                filename: string;
+                path: string;
+                buffer: Buffer;
+            };
         }
     }
 }

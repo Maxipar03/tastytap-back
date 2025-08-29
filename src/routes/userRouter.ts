@@ -13,7 +13,7 @@ router.post("/login", validateJoi(loginUserSchema, "body"), userController.login
 
 router.post("/logout", userController.logout);
 
-router.get("/me", verifyTokenUser , userController.getUser);
+router.get("/me", verifyTokenUser, userController.getUser);
 
 router.get(
     "/oauth2/redirect/accounts.google.com",

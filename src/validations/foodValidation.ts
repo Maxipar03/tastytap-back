@@ -69,9 +69,9 @@ export const validateParamsFoodId = Joi.object({
         .custom(objectIdValidator, 'ObjectId validation')
         .required()
         .messages({
-            'string.base': 'Table ID must be a string',
-            'string.empty': 'Table ID cannot be empty',
-            'any.required': 'Table ID is required',
-            'any.invalid': 'Table ID must be a valid ObjectId'
+            'string.base': 'Food ID must be a string',
+            'string.empty': 'Food ID cannot be empty',
+            'any.required': 'Food ID is required',
+            'any.invalid': 'Food ID must be a valid ObjectId'
         })
 });

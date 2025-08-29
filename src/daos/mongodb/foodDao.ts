@@ -2,19 +2,20 @@ import { FoodModel } from "./models/foodModel.js";
 import { FoodDB } from "../../types/food.js";
 import { CreateFoodDto } from "../../DTO/foodDto.js";
 import MongoDao from "./mongoDao.js";
+import { BadRequestError } from "../../utils/customError.js";
 import { Model, Types } from "mongoose";
 
 interface IMenuFilters {
-        category?: string;
-        minPrice?: number;
-        maxPrice?: number;
-        itemName?: string;
-        available?: boolean;
-        search?: string;
-        isVegetarian?: boolean;
-        isVegan?: boolean;
-        isGlutenFree?: boolean;
-    }
+    category?: string;
+    minPrice?: number;
+    maxPrice?: number;
+    itemName?: string;
+    available?: boolean;
+    search?: string;
+    isVegetarian?: boolean;
+    isVegan?: boolean;
+    isGlutenFree?: boolean;
+}
 
 class FoodMongoDao extends MongoDao<FoodDB, CreateFoodDto> {
     constructor(model: Model<FoodDB>) {
@@ -22,8 +23,15 @@ class FoodMongoDao extends MongoDao<FoodDB, CreateFoodDto> {
     }
 
     async getByRestaurantId(restaurant: string | Types.ObjectId, filters: IMenuFilters = {}) {
-        try { 
+        try {
+
+            if (!Types.ObjectId.isValid(restaurant)) throw new BadRequestError("ID inválido");
+
             const menuMatch: any = {};
+
+            const escapeRegex = (str: string): string => {
+                return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            };
 
             if (filters.category) {
                 menuMatch.category = filters.category;
@@ -35,13 +43,11 @@ class FoodMongoDao extends MongoDao<FoodDB, CreateFoodDto> {
                 menuMatch.price = { ...menuMatch.price, $lte: filters.maxPrice };
             }
             if (filters.search) {
-                menuMatch.name = { $regex: new RegExp(filters.search, 'i') };
+                menuMatch.name = { $regex: escapeRegex(filters.search), $options: 'i' };
             }
-
             if (typeof filters.available === 'boolean') {
                 menuMatch.available = filters.available;
             }
-
             if (typeof filters.isVegetarian === 'boolean') {
                 menuMatch.isVegetarian = filters.isVegetarian;
             }

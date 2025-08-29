@@ -1,7 +1,7 @@
-import { model, Schema} from "mongoose"
+import { model, Schema } from "mongoose"
 import { RestaurantDB } from "../../../types/restaurant.js";
 
-const restaurantSchema = new Schema <RestaurantDB> ({
+const restaurantSchema = new Schema<RestaurantDB>({
     name: {
         type: String,
         required: true,
@@ -18,7 +18,14 @@ const restaurantSchema = new Schema <RestaurantDB> ({
     },
     email: {
         type: String,
-        trim: true
+        required: true,
+        unique: true,
+        validate: {
+            validator: (email: string) => {
+                return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+            },
+            message: 'Email inválido'
+        }
     },
     description: {
         type: String,
@@ -43,4 +50,4 @@ const restaurantSchema = new Schema <RestaurantDB> ({
     timestamps: true
 })
 
-export const RestaurantModel = model <RestaurantDB> ("restaurant", restaurantSchema);
+export const RestaurantModel = model<RestaurantDB>("restaurant", restaurantSchema);

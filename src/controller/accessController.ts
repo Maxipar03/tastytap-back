@@ -4,10 +4,10 @@ import { httpResponse } from "../utils/http-response.js";
 import { TableModel } from "../daos/mongodb/models/tableModel.js";
 import generateToken from "../utils/generateToken.js";
 import QRCode from "qrcode";
+import config from "../config/config.js";
 import jwt, { JwtPayload } from "jsonwebtoken";
 import { getIO } from "../config/socket.js";
 import { UserPayload, QRCodePayload } from "../types/express.js";
-import config from "../config/config.js";
 import { Types } from "mongoose";
 
 class AccessController {
@@ -24,7 +24,7 @@ class AccessController {
             const payload: QRCodePayload & JwtPayload = { tableId: new Types.ObjectId(tableId), waiterName: user.name, restaurant: user.restaurant, waiterId: user.id };
             const token = generateToken(payload);
 
-            const link = `http://localhost:3000/access/${token}`;
+            const link = `${config.FRONT_ENDPOINT}/access/${token}`;
 
             let qrImage: string
 

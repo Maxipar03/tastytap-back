@@ -5,7 +5,7 @@ import { httpResponse } from '../utils/http-response'; // Asegúrate de que la r
 export const errorHandler = (error: Error | CustomError, req: Request, res: Response, next: NextFunction) => {
 
     if (error instanceof ForbiddenError) {
-        return httpResponse.NotFound(res, error.message);
+        return httpResponse.Forbidden(res, error.message);
     } 
     
     if (error instanceof NotFoundError) {

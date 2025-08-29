@@ -13,7 +13,6 @@ export default class RestaurantService {
     create = async (body: CreateRestaurantDto): Promise<RestaurantDB> => {
         try{
             const response = await this.dao.create(body);
-            if(!response) throw new CustomError("Error al crear el restaurante", 500);
             return response;
         }catch (error) {
             throw error;
@@ -31,7 +30,6 @@ export default class RestaurantService {
     getById = async (id: string): Promise <RestaurantDB | null> => {
         try{
             const response = await this.dao.getById(id);
-            if(!response) throw new NotFoundError("No se encontro el restaurante");
             return response;
         }catch (error) {
             throw error;
@@ -41,7 +39,6 @@ export default class RestaurantService {
     update = async (id: string, body: Partial<RestaurantDB>): Promise<RestaurantDB | null> => {
         try{
             const response = await this.dao.update(id, body);
-            if(!response) throw new NotFoundError("No se encontro el restaurante");
             return response;
         }catch (error) {
             throw error;
@@ -51,7 +48,6 @@ export default class RestaurantService {
     delete = async (id: string): Promise<RestaurantDB | null> => {
         try{
             const response = await this.dao.delete(id);
-            if(!response) throw new NotFoundError("No se encontro el restaurante");
             return response;
         }catch (error) {
             throw error;

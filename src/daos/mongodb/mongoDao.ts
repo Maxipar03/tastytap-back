@@ -1,5 +1,6 @@
 import { Model } from "mongoose";
 import { Types } from "mongoose";
+import { BadRequestError } from "../../utils/customError";
 
 export default class MongoDao <T, C> {
 
@@ -19,6 +20,7 @@ export default class MongoDao <T, C> {
 
     getById = async (id: string | Types.ObjectId): Promise<T | null> => {
         try {
+            if (!Types.ObjectId.isValid(id)) throw new BadRequestError("ID inválido");
             return (await this.model.findById(id).lean()) as T | null;
         } catch (error) {
             throw error
@@ -36,6 +38,7 @@ export default class MongoDao <T, C> {
 
     update = async (id: string | Types.ObjectId, body: Partial<T>): Promise<T | null> => {
         try {
+            if (!Types.ObjectId.isValid(id)) throw new BadRequestError("ID inválido");
             return (await this.model.findByIdAndUpdate(id, body, { new: true }).lean()) as T | null;
         } catch (error) {
             throw error
@@ -44,6 +47,7 @@ export default class MongoDao <T, C> {
 
     delete = async (id: string | Types.ObjectId): Promise<T | null> => {
         try {
+            if (!Types.ObjectId.isValid(id)) throw new BadRequestError("ID inválido");
             return (await this.model.findByIdAndDelete(id).lean()) as T | null;
         } catch (error) {
             throw error

@@ -27,6 +27,7 @@
     "multer": "^2.0.1",
     "passport": "^0.7.0",
     "passport-google-oauth20": "^2.0.0",
+    "pino": "^9.9.0",
     "qrcode": "^1.5.4",
     "socket.io": "^4.8.1",
     "tsx": "^4.20.3",

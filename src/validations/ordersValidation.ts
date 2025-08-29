@@ -45,10 +45,10 @@ export const validateItemAndTableOrder = Joi.object({
         .custom(objectIdValidator, 'ObjectId validation')
         .required()
         .messages({
-            'string.base': 'Table ID must be a string',
-            'string.empty': 'Table ID cannot be empty',
-            'any.required': 'Table ID is required',
-            'any.invalid': 'Table ID must be a valid ObjectId'
+            'string.base': 'Item ID must be a string',
+            'string.empty': 'Item ID cannot be empty',
+            'any.required': 'Item ID is required',
+            'any.invalid': 'Item ID must be a valid ObjectId'
         })
 });
 

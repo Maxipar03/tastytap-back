@@ -18,10 +18,6 @@ const name = Joi.string().min(3).required().messages({
     'any.required': 'El nombre es un campo requerido.'
 });
 
-const role = Joi.string().valid('user', 'waiter', 'chef', 'admin').default('user').messages({
-    'any.only': 'El rol debe ser uno de los siguientes: user, waiter, chef, admin.'
-});
-
 export const registerUserSchema = Joi.object({
     name,
     email,

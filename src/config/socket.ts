@@ -1,5 +1,6 @@
 import { Server, Socket } from "socket.io";
 import { Server as HttpServer } from "http";
+import config from "./config.js";
 import { ClientToServerEvents, SocketData } from "../types/socket.js";
 
 // La variable 'io' ahora tiene los tipos correctos para los eventos
@@ -8,7 +9,7 @@ let io: Server<ClientToServerEvents, any, SocketData>;
 export const initSocketIO = (httpServer: HttpServer) => {
   io = new Server<ClientToServerEvents, any, SocketData>(httpServer, {
     cors: {
-      origin: "http://localhost:3000",
+      origin: config.FRONT_ENDPOINT,
       methods: ["GET", "POST", "DELETE"],
       credentials: true
     }
