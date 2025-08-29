@@ -26,7 +26,6 @@ export const verifyTokenAccess = (req: Request, res: Response, next: NextFunctio
             res.clearCookie('access_token', {
                 httpOnly: true,
                 sameSite: 'lax',
-                secure: process.env.NODE_ENV === 'production'
             });
 
             return next(new UnauthorizedError("El token es invalido o esta expirado"));
@@ -69,7 +68,6 @@ const createUserTokenMiddleware = (isOptional: boolean = false) => {
             res.clearCookie("user_info", {
                 httpOnly: true,
                 sameSite: "strict",
-                secure: process.env.NODE_ENV === "production",
             });
             if (!isOptional) {
                 return next(new UnauthorizedError("Token inválido o expirado"));

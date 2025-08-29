@@ -33,7 +33,6 @@ class UserController {
 
             res.cookie('user_info', token, {
                 httpOnly: true,
-                secure: process.env.NODE_ENV === 'production',
                 maxAge: 7 * 24 * 60 * 60 * 1000
             });
 
@@ -60,7 +59,6 @@ class UserController {
             res.clearCookie('user_info', {
                 httpOnly: true,
                 secure: process.env.NODE_ENV === 'production',
-                sameSite: 'lax',
             });
 
             return httpResponse.Ok(res, "Sesion cerrada correctamente");
@@ -86,7 +84,6 @@ class UserController {
 
             res.cookie('user_info', token, {
                 httpOnly: true,
-                secure: process.env.NODE_ENV === 'production',
                 maxAge: 7 * 24 * 60 * 60 * 1000
             });
 
