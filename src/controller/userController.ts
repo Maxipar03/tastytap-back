@@ -84,13 +84,15 @@ class UserController {
 
             res.cookie('user_info', token, {
                 httpOnly: true,
+                secure: true,    
+                sameSite: 'none',
                 maxAge: 7 * 24 * 60 * 60 * 1000
             });
 
             const tokenTable = req.cookies.access_token
 
-            if (tokenTable) return httpResponse.Ok(res, {userPayload, redirect: "/seats" })
-            return httpResponse.Ok(res, {userPayload, redirect: "/" })
+            if (tokenTable) return httpResponse.Ok(res, { userPayload, redirect: "/seats" })
+            return httpResponse.Ok(res, { userPayload, redirect: "/" })
         } catch (error) {
             next(error);
         }
