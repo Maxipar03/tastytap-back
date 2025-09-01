@@ -3,6 +3,7 @@ import { Request, Response, NextFunction } from "express"
 import { QRCodePayload, UserPayload } from "../types/express.js";
 import { UnauthorizedError } from "../utils/customError.js";
 import config from "../config/config.js";
+import { getClearCookieConfig } from "../utils/cookieConfig.js";
 
 // Verify seat token
 export const verifyTokenSeat = (req: Request, res: Response, next: NextFunction) => {
@@ -23,11 +24,7 @@ export const verifyTokenAccess = (req: Request, res: Response, next: NextFunctio
 
     jwt.verify(token, config.JWT_SECRET, (err: any, decoded: any) => {
         if (err) {
-            res.clearCookie('access_token', {
-                httpOnly: true,
-                secure: true,    
-                sameSite: 'none',
-            });
+            res.clearCookie('access_token', getClearCookieConfig());
 
             return next(new UnauthorizedError("El token es invalido o esta expirado"));
         }
@@ -66,11 +63,7 @@ const createUserTokenMiddleware = (isOptional: boolean = false) => {
         const userData = decodeUserToken(token);
 
         if (!userData) {
-            res.clearCookie("user_info", {
-                httpOnly: true,
-                secure: true,    
-                sameSite: 'none',
-            });
+            res.clearCookie("user_info", getClearCookieConfig());
             if (!isOptional) {
                 return next(new UnauthorizedError("Token inválido o expirado"));
             }

@@ -12,6 +12,7 @@ yarn-error.log*
 .env.production.local
 MEJORAS_COMPLETAS.md
 MEJORAS_MANEJO_ERRORES.md
+DEPLOYMENT.md
 
 # Archivos de compilación
 dist/

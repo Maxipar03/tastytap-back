@@ -7,6 +7,7 @@ import { Request, Response, NextFunction } from "express";
 import { BadRequestError, NotFoundError } from "../utils/customError.js";
 import { JwtPayload } from "jsonwebtoken";
 import { httpResponse } from "../utils/http-response.js";
+import { getCookieConfig, getClearCookieConfig } from "../utils/cookieConfig.js";
 
 class UserController {
 
@@ -31,12 +32,7 @@ class UserController {
 
             const token = generateToken(userPayload);
 
-            res.cookie('user_info', token, {
-                httpOnly: true,
-                secure: true,    
-                sameSite: 'none',
-                maxAge: 7 * 24 * 60 * 60 * 1000
-            });
+            res.cookie('user_info', token, getCookieConfig());
 
             return httpResponse.Created(res, { user: req.user })
         } catch (error) {
@@ -58,11 +54,7 @@ class UserController {
 
     logout = async (req: Request, res: Response, next: NextFunction) => {
         try {
-            res.clearCookie('user_info', {
-                httpOnly: true,
-                secure: true,    
-                sameSite: 'none',
-            });
+            res.clearCookie('user_info', getClearCookieConfig());
 
             return httpResponse.Ok(res, "Sesion cerrada correctamente");
         } catch (error) {
@@ -85,12 +77,7 @@ class UserController {
 
             const token = generateToken(userPayload);
 
-            res.cookie('user_info', token, {
-                httpOnly: true,
-                secure: true,    
-                sameSite: 'none',
-                maxAge: 7 * 24 * 60 * 60 * 1000
-            });
+            res.cookie('user_info', token, getCookieConfig());
 
             const tokenTable = req.cookies.access_token
 
