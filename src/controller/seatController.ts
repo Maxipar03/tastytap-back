@@ -26,8 +26,10 @@ class SeatController {
 
             if (!seat) {
                 res.clearCookie("seat_token", {
-                    httpOnly: true
-                });
+                httpOnly: true,
+                secure: true,    
+                sameSite: 'none',
+            });
                 throw new NotFoundError("Error al utilizar el token");
             }
 
@@ -83,7 +85,9 @@ class SeatController {
 
             res.cookie("seat_token", sessionToken, {
                 httpOnly: true,
-                maxAge: 1000 * 60 * 60
+                secure: true,    
+                sameSite: 'none',
+                maxAge: 7 * 24 * 60 * 60 * 1000
             });
 
             return httpResponse.Created(res, response)
@@ -103,7 +107,9 @@ class SeatController {
             await this.service.delete(seatId, restaurant);
 
             res.clearCookie("seat_token", {
-                httpOnly: true
+                httpOnly: true,
+                secure: true,    
+                sameSite: 'none',
             });
 
             return httpResponse.Ok(res, "Asiento eliminado correctamente")

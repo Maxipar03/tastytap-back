@@ -14,6 +14,23 @@ class FoodController {
         this.service = services;
     }
 
+    private async uploadToCloudinary(file: Express.Multer.File): Promise<string> {
+        if (!file) throw new BadRequestError("No se selecciono una imagen para la comida")
+
+        try {
+            const base64File = `data:${file.mimetype};base64,${file.buffer.toString('base64')}`;
+            const result = await cloudinary.uploader.upload(base64File, {
+                folder: "foods"
+            });
+
+            return result.secure_url;
+        } catch (error) {
+            console.error("Cloudinary upload error:", error);
+            throw new Error("Error subiendo imagen");
+        }
+    }
+
+
     getAll = async (req: Request, res: Response, next: NextFunction): Promise<any> => {
         try {
             const restaurant = req.mesaData?.restaurant;
@@ -55,29 +72,12 @@ class FoodController {
     create = async (req: Request, res: Response, next: NextFunction): Promise<any> => {
         try {
 
+            console.log(req.body)
+
             if (!req.user || !req.user.restaurant) throw new UnauthorizedError("Datos de usuario o restaurante no encontrados");
-            if (!req.body || !req.body.ingredients || !req.body.options) throw new NotFoundError("Datos de comida no encontrados")
+            if (!req.body || !req.body.ingredients || !req.body.options) throw new NotFoundError("Datos de comida no encontradosss")
 
-            let imageUrl = "";
-
-            if (req.file) {
-                console.log('Cloudinary config:', {
-                    cloud_name: cloudinary.config().cloud_name,
-                    api_key: cloudinary.config().api_key
-                });
-
-                cloudinary.config({
-                    cloud_name: process.env.CLOUDINARY_CLOUD_NAME!,
-                    api_key: process.env.CLOUDINARY_API_KEY!,
-                    api_secret: process.env.CLOUDINARY_API_SECRET!
-                });
-
-                const result = await cloudinary.uploader.upload(req.file.path, {
-                    folder: "foods",
-                    transformation: [{ width: 500, height: 500, crop: "limit" }]
-                });
-                imageUrl = result.secure_url;
-            }
+            const imageUrl = req.file ? await this.uploadToCloudinary(req.file) : "";
 
             const foodData = {
                 ...req.body,
@@ -109,37 +109,19 @@ class FoodController {
 
     update = async (req: Request, res: Response, next: NextFunction): Promise<any> => {
         try {
+            console.log(req.body)
             const { id } = req.params;
             if (!id) throw new NotFoundError("Datos de comida no encontrados");
             if (!req.user || !req.user.restaurant) throw new UnauthorizedError("Datos de usuario o restaurante no encontrados");
 
-            let imageUrl = "";
-
-            if (req.file) {
-                cloudinary.config({
-                    cloud_name: process.env.CLOUDINARY_CLOUD_NAME!,
-                    api_key: process.env.CLOUDINARY_API_KEY!,
-                    api_secret: process.env.CLOUDINARY_API_SECRET!
-                });
-
-                const result = await cloudinary.uploader.upload(req.file.path, {
-                    folder: "foods",
-                    transformation: [{ width: 500, height: 500, crop: "limit" }]
-                });
-                imageUrl = result.secure_url;
-            }
+            const imageUrl = req.file ? await this.uploadToCloudinary(req.file) : "";
 
             const updateData = {
                 ...req.body,
-                ...(req.body.options && {
-                    options: typeof req.body.options === 'string' ? JSON.parse(req.body.options) : req.body.options
-                }),
-                ...(imageUrl && { image: imageUrl })
+                ingredients: req.body.ingredients,
+                options: typeof req.body.options === 'string' ? JSON.parse(req.body.options) : req.body.options,
+                image: imageUrl
             };
-
-            console.log("id", id)
-            console.log("req.user", req.user)
-            console.log("id", updateData)
 
             const response = await this.service.update(id, req.user, updateData);
             return httpResponse.Ok(res, response);

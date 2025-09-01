@@ -22,7 +22,11 @@ declare global {
             seatData?: { token: string };
             mesaData?: QRCodePayload;
             user?: UserPayload;
-            file?: {
+            file?: Multer.File;
+        }
+        
+        namespace Multer {
+            interface File {
                 fieldname: string;
                 originalname: string;
                 encoding: string;
@@ -32,7 +36,7 @@ declare global {
                 filename: string;
                 path: string;
                 buffer: Buffer;
-            };
+            }
         }
     }
 }

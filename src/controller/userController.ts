@@ -33,6 +33,8 @@ class UserController {
 
             res.cookie('user_info', token, {
                 httpOnly: true,
+                secure: true,    
+                sameSite: 'none',
                 maxAge: 7 * 24 * 60 * 60 * 1000
             });
 
@@ -58,7 +60,8 @@ class UserController {
         try {
             res.clearCookie('user_info', {
                 httpOnly: true,
-                secure: process.env.NODE_ENV === 'production',
+                secure: true,    
+                sameSite: 'none',
             });
 
             return httpResponse.Ok(res, "Sesion cerrada correctamente");
