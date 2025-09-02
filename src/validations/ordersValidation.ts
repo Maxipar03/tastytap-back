@@ -9,7 +9,7 @@ const objectIdValidator = (value: any, helpers: any) => {
 };
 
 const itemSchema = Joi.object({
-    food: Joi.string().hex().length(24).required(), // ID de MongoDB
+    foodName: Joi.string(), // ID de MongoDB
     options: Joi.array().items(Joi.object({
         name: Joi.string().required(),
         value: Joi.any().required(),

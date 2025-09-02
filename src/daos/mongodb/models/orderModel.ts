@@ -14,9 +14,8 @@ const orderItemOptionSchema = new Schema < OrderItemOption > ({
 });
 
 const orderItemSchema = new Schema < OrderItem > ({
-    food: {
-        type: Schema.Types.ObjectId,
-        ref: "food",
+    foodName: {
+        type: String,
         required: true,
     },
     quantity: {

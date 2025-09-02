@@ -30,7 +30,7 @@ class OrderMongoDao extends MongoDao<OrderDB, CreateOrderDto> {
                 },
                 { new: true },
             )
-                .populate("items.food");
+            
 
             return updatedOrder as OrderDB | null
         } catch (error) {
@@ -85,7 +85,7 @@ class OrderMongoDao extends MongoDao<OrderDB, CreateOrderDto> {
             }
 
             // 🆕 Ejecutar la consulta con los filtros
-            return (await this.model.find(query).populate("items.food", "name").populate("waiterId", "name").lean()) as OrderDB[];
+            return (await this.model.find(query).populate("waiterId", "name").lean()) as OrderDB[];
         } catch (error) {
             console.error("Error fetching orders by restaurant:", error);
             throw error
@@ -105,7 +105,7 @@ class OrderMongoDao extends MongoDao<OrderDB, CreateOrderDto> {
     getBySeatId = async (seatId: string | Types.ObjectId): Promise<OrderDB[]> => {
         try {
             if (!Types.ObjectId.isValid(seatId)) throw new BadRequestError("ID inválido");
-            const orders = await this.model.find({ seatId }).populate("items.food", "name price");
+            const orders = await this.model.find({ seatId });
             return orders as OrderDB[];
         } catch (error) {
             console.error("Error fetching orders by restaurant:", error);

@@ -34,25 +34,25 @@ app
         cors({
             credentials: true,
             origin: function (origin, callback) {
-                // Permitir requests sin origin (mobile apps, etc.)
                 if (!origin) return callback(null, true);
-                
+
                 const allowedOrigins = [
-                    config.FRONT_ENDPOINT,
-                    'http://localhost:3000',
-                    'http://localhost:5173',
-                    'https://localhost:3000',
-                    'https://localhost:5173'
+                    "https://tastytap.net",
+                    "https://www.tastytap.net",
+                    "http://localhost:3000",
+                    "http://localhost:5173",
+                    "https://localhost:3000",
+                    "https://localhost:5173"
                 ];
-                
+
                 if (allowedOrigins.includes(origin)) {
                     return callback(null, true);
                 }
-                
+
                 return callback(new Error('Not allowed by CORS'));
             },
             methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-            allowedHeaders: ['Content-Type', 'Authorization', 'Cookie'],
+            allowedHeaders: ['Content-Type', 'Authorization'],
             exposedHeaders: ['Set-Cookie']
         })
     );

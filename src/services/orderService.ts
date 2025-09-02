@@ -24,8 +24,6 @@ export default class OrderService {
             const response = await this.dao.create(body);
             if (!response) throw new CustomError("Error al crear el plato", 500);
 
-            const populatedOrder = await response.populate("items.food");
-
             console.log(userId, response._id)
 
             if (userId) {
@@ -37,7 +35,7 @@ export default class OrderService {
             // 🔔 Emitir al mozo asignado
             if (body.waiterId) {
                 io.to(`waiter-${body.waiterId}`).emit("nuevo-pedido", {
-                    order: populatedOrder,
+                    order: response,
                     seatId: seatId,
                     timestamp: new Date()
                 });
@@ -46,12 +44,12 @@ export default class OrderService {
 
             // 🍽️ Emitir a la cocina y administración
             io.to(`restaurant-${body.restaurant._id}`).emit("nuevo-pedido", {
-                order: populatedOrder,
+                order: response,
                 seatId: seatId,
                 timestamp: new Date()
             });
 
-            return populatedOrder;
+            return response;
 
         } catch (error) {
             throw error;

@@ -2,12 +2,10 @@ import { userService } from "../services/userService.js";
 import generateToken from "../utils/generateToken.js";
 import { UserService } from "../types/user.js";
 import { UserPayload } from "../types/express.js";
-import { LoginUserDto } from "../DTO/userDto.js";
 import { Request, Response, NextFunction } from "express";
-import { BadRequestError, NotFoundError } from "../utils/customError.js";
+import { BadRequestError } from "../utils/customError.js";
 import { JwtPayload } from "jsonwebtoken";
 import { httpResponse } from "../utils/http-response.js";
-import { getCookieConfig, getClearCookieConfig } from "../utils/cookieConfig.js";
 
 class UserController {
 
@@ -32,7 +30,11 @@ class UserController {
 
             const token = generateToken(userPayload);
 
-            res.cookie('user_info', token, getCookieConfig());
+            res.cookie('user_info', token,{
+                httpOnly: true,
+                secure: true,    
+                sameSite: 'none',
+            });
 
             return httpResponse.Created(res, { user: req.user })
         } catch (error) {
@@ -54,7 +56,11 @@ class UserController {
 
     logout = async (req: Request, res: Response, next: NextFunction) => {
         try {
-            res.clearCookie('user_info', getClearCookieConfig());
+            res.clearCookie('user_info',{
+                httpOnly: true,
+                secure: true,    
+                sameSite: 'none',
+            });
 
             return httpResponse.Ok(res, "Sesion cerrada correctamente");
         } catch (error) {
@@ -77,7 +83,11 @@ class UserController {
 
             const token = generateToken(userPayload);
 
-            res.cookie('user_info', token, getCookieConfig());
+            res.cookie('user_info', token, {
+                httpOnly: true,
+                secure: true,    
+                sameSite: 'none',
+            });
 
             const tokenTable = req.cookies.access_token
 

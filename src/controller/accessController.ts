@@ -9,7 +9,6 @@ import jwt, { JwtPayload } from "jsonwebtoken";
 import { getIO } from "../config/socket.js";
 import { UserPayload, QRCodePayload } from "../types/express.js";
 import { Types } from "mongoose";
-import { getCookieConfig } from "../utils/cookieConfig.js";
 
 class AccessController {
 
@@ -58,7 +57,13 @@ class AccessController {
                 throw new UnauthorizedError("Token inválido o expirado");
             }
 
-            res.cookie('access_token', token, getCookieConfig());
+            res.cookie('access_token', token,
+                {
+                    httpOnly: true,
+                    secure: true,
+                    sameSite: 'none',
+                }
+            );
 
             const { restaurant, tableId, waiterId } = payload;
 

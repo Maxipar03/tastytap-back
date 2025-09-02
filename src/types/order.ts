@@ -23,7 +23,7 @@ export interface OrderItemOption {
 }
 
 export interface OrderItem {
-    food: Types.ObjectId;
+    foodName: string;
     quantity: number;
     price: number;
     options: OrderItemOption[];
