@@ -9,10 +9,29 @@ let io: Server<ClientToServerEvents, any, SocketData>;
 export const initSocketIO = (httpServer: HttpServer) => {
   io = new Server<ClientToServerEvents, any, SocketData>(httpServer, {
     cors: {
-      origin: config.FRONT_ENDPOINT,
-      methods: ["GET", "POST", "DELETE"],
-      credentials: true
-    }
+            credentials: true,
+            origin: function (origin, callback) {
+                if (!origin) return callback(null, true);
+
+                const allowedOrigins = [
+                    "https://tastytap.net",
+                    "https://www.tastytap.net",
+                    "http://localhost:3000",
+                    "http://localhost:5173",
+                    "https://localhost:3000",
+                    "https://localhost:5173"
+                ];
+
+                if (allowedOrigins.includes(origin)) {
+                    return callback(null, true);
+                }
+
+                return callback(new Error('Not allowed by CORS'));
+            },
+            methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+            allowedHeaders: ['Content-Type', 'Authorization'],
+            exposedHeaders: ['Set-Cookie']
+        }
   });
 
   io.on("connection", (socket: Socket<ClientToServerEvents, any, SocketData>) => {
