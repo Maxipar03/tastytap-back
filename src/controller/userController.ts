@@ -47,7 +47,7 @@ class UserController {
             const response = await this.service.register(req.body);
             const tokenTable = req.cookies.access_token
 
-            if (tokenTable) return httpResponse.Created(res, { response, redirect: "/seats" })
+            if (tokenTable) return httpResponse.Created(res, { response, redirect: "/menu" })
             return httpResponse.Created(res, { response, redirect: "/" })
         } catch (error) {
             next(error);
@@ -91,7 +91,7 @@ class UserController {
 
             const tokenTable = req.cookies.access_token
 
-            if (tokenTable) return httpResponse.Ok(res, { userPayload, redirect: "/seats" })
+            if (tokenTable) return httpResponse.Ok(res, { userPayload, redirect: "/menu" })
             return httpResponse.Ok(res, { userPayload, redirect: "/" })
         } catch (error) {
             next(error);

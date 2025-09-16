@@ -11,7 +11,7 @@ yarn-error.log*
 .env.test.local
 .env.production.local
 MEJORAS_COMPLETAS.md
-MEJORAS_MANEJO_ERRORES.md
+implementacion_hibrida_mesa.txt
 DEPLOYMENT.md
 
 # Archivos de compilación

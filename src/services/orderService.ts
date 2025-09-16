@@ -4,62 +4,89 @@ import { CustomError, NotFoundError } from "../utils/customError.js";
 import { CreateOrderDto } from "../DTO/orderDto.js";
 import { OrderFilters } from "../types/order.js";
 import { UserModel } from "../daos/mongodb/models/userModel.js";
-import { OrderDao, OrderDB, OrderStatus } from "../types/order.js";
+import { OrderDao, OrderDB, OrderStatus, CreateOrderResponse } from "../types/order.js";
 import { Types } from "mongoose";
+import generateToken from "../utils/generateToken.js";
+import { tableServices } from "./tableService.js";
 
 export default class OrderService {
 
     private dao: OrderDao
-    
+
     constructor(dao: OrderDao) {
         this.dao = dao;
     }
 
-    create = async (body: CreateOrderDto): Promise<OrderDB> => {
+    create = async (body: CreateOrderDto): Promise<CreateOrderResponse> => {
         try {
 
-            const userId = body.clientId
-            const seatId = body.seatId
+            const userId = body.clientId;
 
             const response = await this.dao.create(body);
             if (!response) throw new CustomError("Error al crear el plato", 500);
 
-            console.log(userId, response._id)
+            if (userId) await UserModel.findByIdAndUpdate(userId, { $push: { orders: response._id } });
 
-            if (userId) {
-                await UserModel.findByIdAndUpdate(userId, { $push: { orders: response._id } });
-            }
+            const populatedOrder = await response
+                .populate([
+                    { path: "waiterId", select: "name email role" },
+                    { path: "tableId", select: "tableNumber status" },
+                ])
 
+            const orderToken = generateToken({ orderId: populatedOrder._id })
             const io = getIO();
 
             // 🔔 Emitir al mozo asignado
             if (body.waiterId) {
-                io.to(`waiter-${body.waiterId}`).emit("nuevo-pedido", {
-                    order: response,
-                    seatId: seatId,
+                io.to(`waiter-${body.waiterId}`).emit("nueva-orden", {
+                    order: populatedOrder,
                     timestamp: new Date()
                 });
             }
 
 
             // 🍽️ Emitir a la cocina y administración
-            io.to(`restaurant-${body.restaurant._id}`).emit("nuevo-pedido", {
-                order: response,
-                seatId: seatId,
+            io.to(`restaurant-${body.restaurant._id}`).emit("nueva-orden", {
+                order: populatedOrder,
                 timestamp: new Date()
             });
 
-            return response;
+            return { order: populatedOrder, token: orderToken };
 
         } catch (error) {
             throw error;
         };
     };
 
-    update = async (id:string, body: Partial<OrderDB> ): Promise<OrderDB | null> => {
+    updateStatusOrder = async (id: string, body: Partial<OrderDB>, restaurant: string | Types.ObjectId): Promise<OrderDB | null> => {
         try {
             const response = await this.dao.update(id, body);
             if (!response) throw new NotFoundError("No se encontro el plato");
+
+            // Verificar si la orden está completada y es la última de la mesa
+            if (body.status === "ready") {
+                const tableOrders = await this.dao.getByTableId(response.tableId);
+                const activeOrders = tableOrders.filter(order => 
+                    order._id.toString() !== id && 
+                    order.status !== "ready" 
+                );
+                
+                // Si no hay más órdenes activas, liberar la mesa
+                if (activeOrders.length === 0) {
+                    await tableServices.update(response.tableId, { state: "available", waiterServing: null }, restaurant);
+                }
+            }
+
+            const io = getIO();
+
+            console.log(response)
+
+            // 🍽️ Emitir a la cocina y administración
+            io.to(`restaurant-${restaurant}`).emit("estado-orden-actualizado", {
+                order: response,
+                timestamp: new Date()
+            });
+
             return response;
         } catch (error) {
             throw error;
@@ -103,13 +130,23 @@ export default class OrderService {
         }
     }
 
-    updateStatus = async (itemId:string | Types.ObjectId, orderId:string | Types.ObjectId, newStatus: OrderStatus): Promise<OrderDB | null> => {
+    getById = async (id: string | Types.ObjectId): Promise<OrderDB | null> => {
+        try {
+            const response = await this.dao.getById(id);
+            if (!response) throw new NotFoundError("No se encontró la orden");
+            return response;
+        } catch (error) {
+            throw error;
+        }
+    };
+
+    updateStatusItems = async (itemId: string | Types.ObjectId, orderId: string | Types.ObjectId, newStatus: OrderStatus): Promise<OrderDB | null> => {
         try {
 
-            const updatedOrder = await this.dao.updateStatus(itemId, orderId, newStatus)
+            const updatedOrder = await this.dao.updateStatusItems(itemId, orderId, newStatus)
             if (!updatedOrder) throw new CustomError("No se encontró la orden o el item", 404)
 
-            const { restaurant, waiterId, seatId } = updatedOrder
+            const { restaurant, waiterId } = updatedOrder
 
             const io = getIO()
 
@@ -118,7 +155,6 @@ export default class OrderService {
                 orderId,
                 itemId,
                 newStatus,
-                seatId,
                 order: updatedOrder,
                 type: "item",
             })
@@ -129,7 +165,6 @@ export default class OrderService {
                     orderId,
                     itemId,
                     newStatus,
-                    seatId,
                     order: updatedOrder,
                     type: "item",
                 })
@@ -141,6 +176,32 @@ export default class OrderService {
             throw error
         }
     }
+
+    addItemsToOrder = async (orderId: string | Types.ObjectId, items: any[]): Promise<OrderDB | null> => {
+        try {
+            const updatedOrder = await this.dao.addItemsToOrder(orderId, items);
+            if (!updatedOrder) throw new NotFoundError("No se encontró la orden");
+            
+            const io = getIO();
+            
+            // Emitir al mozo y restaurante
+            if (updatedOrder.waiterId) {
+                io.to(`waiter-${updatedOrder.waiterId}`).emit("items-agregados", {
+                    order: updatedOrder,
+                    timestamp: new Date()
+                });
+            }
+            
+            io.to(`restaurant-${updatedOrder.restaurant}`).emit("items-agregados", {
+                order: updatedOrder,
+                timestamp: new Date()
+            });
+            
+            return updatedOrder;
+        } catch (error) {
+            throw error;
+        }
+    };
 
 }
 

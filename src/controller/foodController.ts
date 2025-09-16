@@ -109,12 +109,13 @@ class FoodController {
 
     update = async (req: Request, res: Response, next: NextFunction): Promise<any> => {
         try {
-            console.log(req.body)
             const { id } = req.params;
             if (!id) throw new NotFoundError("Datos de comida no encontrados");
             if (!req.user || !req.user.restaurant) throw new UnauthorizedError("Datos de usuario o restaurante no encontrados");
+            
+            let imageUrl: string | undefined;
 
-            const imageUrl = req.file ? await this.uploadToCloudinary(req.file) : "";
+            if (req.file) imageUrl = await this.uploadToCloudinary(req.file);
 
             const updateData = {
                 ...req.body,
@@ -122,6 +123,8 @@ class FoodController {
                 options: typeof req.body.options === 'string' ? JSON.parse(req.body.options) : req.body.options,
                 image: imageUrl
             };
+
+            if (imageUrl) updateData.image = imageUrl;
 
             const response = await this.service.update(id, req.user, updateData);
             return httpResponse.Ok(res, response);

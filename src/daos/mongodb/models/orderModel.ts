@@ -62,10 +62,6 @@ const orderSchema = new Schema < OrderDB > ({
         ref: "restaurant",
         required: true,
     },
-    seatId: {
-        type: Schema.Types.ObjectId,
-        ref: "seat",
-    },
     waiterId: {
         type: Schema.Types.ObjectId,
         ref: "user",

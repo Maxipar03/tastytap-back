@@ -19,7 +19,7 @@ export interface FoodDB extends Document {
     name: string;
     description: string;
     price: number;
-    category: Types.ObjectId | CategoryDB;
+    category: Types.ObjectId | CategoryDB | null;
     options?: FoodOption[];
     available: boolean;
     stock: number;
@@ -41,6 +41,7 @@ export interface FoodDao {
     update: (id: string, body: Partial<FoodDB>) => Promise<FoodDB | null>;
     getById: (id: string) => Promise<FoodDB | null>;
     getByRestaurantId: (restaurantId: string | Types.ObjectId, filter: MenuFiltersDto) => Promise<FoodDB[]>;
+    updateFoodsByCategoryToNull: (categoryId: string | Types.ObjectId) => Promise<any>;
 }
 
 export interface FoodService {

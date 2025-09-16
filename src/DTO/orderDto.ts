@@ -5,7 +5,6 @@ export interface CreateOrderDto {
     items: OrderItem[];
     tableId: Types.ObjectId;
     restaurant: Types.ObjectId;
-    seatId: Types.ObjectId;
     waiterId: Types.ObjectId;
     status: OrderStatus;
     clientId?: Types.ObjectId;

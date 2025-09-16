@@ -1,63 +1,37 @@
 import { tableMongoDao } from "../daos/mongodb/tableDao.js";
 import { orderMongoDao } from "../daos/mongodb/orderDao.js";
-import { seatMogoDao } from "../daos/mongodb/seatDao.js";
-import { SeatDao } from "../types/seat.js";
+import { getIO } from "../config/socket.js";
+
 import { OrderDao } from "../types/order.js";
 import { OrderDB } from "../types/order.js";
 import { TableDao, TableDB } from "../types/table.js";
 import { Types } from "mongoose";
 
-interface SeatWithOrders {
-    seatId: Types.ObjectId;
-    guestName?: string | null | undefined;
-    clientId?: Types.ObjectId | null | undefined;
-    createdAt: Date;
+interface TableWithOrders extends TableDB {
     orders: OrderDB[];
-}
-
-interface TableWithSeatsAndOrders extends TableDB {
-    seats: SeatWithOrders[];
 }
 
 class TableServices {
 
     private dao: TableDao;
-    private seatDao: SeatDao;
     private orderDao: OrderDao;
 
-    constructor(dao: TableDao, orderDao: OrderDao, seatDao: SeatDao) {
+    constructor(dao: TableDao, orderDao: OrderDao) {
         this.dao = dao;
         this.orderDao = orderDao;
-        this.seatDao = seatDao;
     }
 
-    getTablesWithSeatsAndOrders = async (restaurant: string | Types.ObjectId): Promise<TableWithSeatsAndOrders[]> => {
+    getTablesWithOrders = async (restaurant: string | Types.ObjectId): Promise<TableWithOrders[]> => {
         try {
-
-            const tables = await tableMongoDao.getByRestaurant(restaurant) // Obtiene las mesas del restaurant
+            const tables = await tableMongoDao.getByRestaurant(restaurant)
 
             const result = await Promise.all(
                 tables.map(async (table) => {
-                    const seats = await seatMogoDao.getByTableId(table._id.toString(), true) // Obtiene las sillas activas asociadas a la mesas
-
-                    const seatsWithOrders: SeatWithOrders[] = await Promise.all(
-                        seats.map(async (seat) => {
-                            const orders = await this.orderDao.getBySeatId(seat._id.toString());
-
-                            return {
-                                seatId: seat._id,
-                                guestName: seat.guestName,
-                                clientId: seat.userId,
-                                createdAt: seat.createdAt,
-                                orders: orders,
-                            };
-                        })
-                    );
-
+                    const orders = await this.orderDao.getByTableId(table._id.toString());
                     return {
                         ...table,
-                        seats: seatsWithOrders,
-                    } as TableWithSeatsAndOrders
+                        orders,
+                    } as TableWithOrders
                 })
             )
 
@@ -75,10 +49,15 @@ class TableServices {
         }
     }
 
-    update = async (tableId: string | Types.ObjectId, updateData: any): Promise<TableDB | null> => {
+    update = async (tableId: string | Types.ObjectId, updateData: any, restaurant: string | Types.ObjectId): Promise<TableDB | null> => {
         try {
-            console.log(tableId)
             const result = await this.dao.update(tableId, updateData);
+            
+            if (result && restaurant) {
+                const io = getIO();
+                io.to(`restaurant-${restaurant}`).emit("mesa-actualizada", result);
+            }
+            
             return result;
         } catch (error) {
             throw error;
@@ -87,4 +66,4 @@ class TableServices {
 
 }
 
-export const tableServices = new TableServices(tableMongoDao, orderMongoDao, seatMogoDao);
+export const tableServices = new TableServices(tableMongoDao, orderMongoDao);

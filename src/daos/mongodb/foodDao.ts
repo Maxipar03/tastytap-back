@@ -64,6 +64,19 @@ class FoodMongoDao extends MongoDao<FoodDB, CreateFoodDto> {
             throw error;
         }
     }
+
+    async updateFoodsByCategoryToNull(categoryId: string | Types.ObjectId) {
+        try {
+            if (!Types.ObjectId.isValid(categoryId)) throw new BadRequestError("ID inválido");
+            return await this.model.updateMany(
+                { category: categoryId },
+                { $set: { category: null } }
+            );
+        } catch (error) {
+            console.error("Error updating foods category to null:", error);
+            throw error;
+        }
+    }
 }
 
 export const foodMongoDao = new FoodMongoDao(FoodModel)

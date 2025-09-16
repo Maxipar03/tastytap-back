@@ -4,16 +4,6 @@ import { QRCodePayload, UserPayload } from "../types/express.js";
 import { UnauthorizedError } from "../utils/customError.js";
 import config from "../config/config.js";
 
-// Verify seat token
-export const verifyTokenSeat = (req: Request, res: Response, next: NextFunction) => {
-    const token = req.cookies.seat_token;
-
-    if (!token) throw new UnauthorizedError('No estás autorizado.')
-
-    req.seatData = { token };
-    next();
-}
-
 // Verify token access 
 export const verifyTokenAccess = (req: Request, res: Response, next: NextFunction) => {
 
@@ -89,6 +79,75 @@ const createUserTokenMiddleware = (isOptional: boolean = false) => {
     };
 };
 
+export const verifyTokenOrder = (req: Request, res: Response, next: NextFunction) => {
+
+    const token = req.cookies.order_token
+
+    if (!token) throw new UnauthorizedError('No estás autorizado.')
+
+    jwt.verify(token, config.JWT_SECRET, (err: any, decoded: any) => {
+        if (err) {
+            res.clearCookie('order_token',{
+                httpOnly: true,
+                secure: true,    
+                sameSite: 'none',
+            });
+            return next(new UnauthorizedError("El token es invalido o esta expirado"));
+        }
+
+        const { orderId } = decoded as { orderId: string };
+
+        if (!orderId) {
+            return next(new UnauthorizedError("Token inválido"));
+        }
+
+        req.orderId = orderId;
+        next();
+    })
+}
+
+
+const createOrderTokenMiddleware = (isOptional: boolean = false) => {
+    return (req: Request, res: Response, next: NextFunction) => {
+        const token = req.cookies.order_token;
+        
+        if (!token) {
+            if (isOptional) {
+                return next();
+            }
+            throw new UnauthorizedError('No estás autorizado.');
+        }
+        
+        jwt.verify(token, config.JWT_SECRET, (err: any, decoded: any) => {
+            if (err) {
+                res.clearCookie('order_token', {
+                    httpOnly: true,
+                    secure: true,
+                    sameSite: 'none',
+                });
+                if (!isOptional) {
+                    return next(new UnauthorizedError("El token es invalido o esta expirado"));
+                }
+                return next();
+            }
+            
+            const { orderId } = decoded as { orderId: string };
+            
+            if (!orderId) {
+                if (!isOptional) {
+                    return next(new UnauthorizedError("Token inválido"));
+                }
+                return next();
+            }
+            
+            req.orderId = orderId;
+            next();
+        });
+    };
+};
+
 export const verifyTokenUser = createUserTokenMiddleware();
 
 export const optionalVerifyTokenUser = createUserTokenMiddleware(true);
+
+export const verifyTokenOrderOptional = createOrderTokenMiddleware(true);

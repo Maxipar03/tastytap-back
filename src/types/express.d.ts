@@ -19,9 +19,9 @@ export interface QRCodePayload {
 declare global {
     namespace Express {
         interface Request {
-            seatData?: { token: string };
             mesaData?: QRCodePayload;
             user?: UserPayload;
+            orderId?: string;
             file?: Multer.File;
         }
         

@@ -9,7 +9,6 @@ export interface TableWithDetails {
     waiterServing?: Types.ObjectId | null;
     createdAt: Date;
     updatedAt: Date;
-    seats: any[];
     orders: any[];
 }
 
@@ -32,7 +31,7 @@ export interface TableDao {
 }
 
 export interface TableService {
-    getTablesWithSeatsAndOrders: (restaurant: string | Types.ObjectId) => Promise<any[]>;
+    getTablesWithOrders: (restaurant: string | Types.ObjectId) => Promise<any[]>;
     getByRestaurat: (restaurant: string | Types.ObjectId) => Promise<TableDB[]>;
-    update: (tableId: string | Types.ObjectId, data: Partial<TableDB>) => Promise<TableDB | null>;
+    update: (tableId: string | Types.ObjectId, data: Partial<TableDB>, restaurant: string | Types.ObjectId) => Promise<TableDB | null>;
 }

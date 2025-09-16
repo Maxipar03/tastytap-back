@@ -1,5 +1,4 @@
 import { orderService } from "../services/orderService.js";
-import { seatMogoDao } from "../daos/mongodb/seatDao.js";
 import { BadRequestError, NotFoundError } from "../utils/customError.js";
 import { Request, Response, NextFunction } from "express";
 import OrderService from "../services/orderService.js";
@@ -17,46 +16,60 @@ class OrderController {
 
     create = async (req: Request, res: Response, next: NextFunction) => {
         try {
+            const { mesaData, user, body, orderId } = req;
 
-            if (!req.mesaData) throw new NotFoundError("Datos de mesa no encontrados");
-            const mesaData = req.mesaData;
+            if (!mesaData) throw new NotFoundError("Datos de mesa no encontrados");
 
-            console.log(mesaData)
+            // Si hay orderId del token, agregar items a orden existente
+            if (orderId) {
+                const updatedOrder = await this.service.addItemsToOrder(orderId, body.items);
+                return httpResponse.Ok(res, updatedOrder);
+            }
 
-            const token = req.cookies.seat_token
-            if (!token) throw new NotFoundError("Token de mesa no encontrado");
-
-            const seat = await seatMogoDao.findOne({ sessionToken: token });
-            if (!seat) throw new NotFoundError("Mesa no encontrada");
-
+            // Caso normal: crear nueva orden
             const orderData: Partial<CreateOrderDto> = {
-                ...req.body,
+                ...body,
                 tableId: mesaData.tableId,
                 waiterId: mesaData.waiterId,
                 restaurant: mesaData.restaurant,
-                seatId: seat._id,
+                userName: user ? user.name : body.guestName,
+                clientId: user ? new Types.ObjectId(user.id) : undefined,
             };
 
-            if (req.user) {
-                orderData.clientId = new Types.ObjectId(req.user.id);
-                orderData.userName = req.user.name;
-            } else {
-                if (!seat.guestName) throw new NotFoundError("Nombre de invitado no encontrado");
-                orderData.userName = seat.guestName;
-            }
+            const { order, token } = await this.service.create(orderData as any);
 
-            const response = await this.service.create(orderData as CreateOrderDto);
-            return httpResponse.Created(res, response)
+            res.cookie("order_token", token, {
+                httpOnly: true,
+                secure: process.env.NODE_ENV === "production",
+                sameSite: "strict",
+                maxAge: 1000 * 60 * 60,
+            });
+            return httpResponse.Created(res, order);
+
         } catch (error) {
             next(error);
         }
     };
 
-    update = async (req: Request, res: Response, next: NextFunction) => {
+    getByTokenUser = async (req: Request, res: Response, next: NextFunction) => {
+        try {
+            const idOrder = req.orderId;
+            if (!idOrder) throw new NotFoundError("Datos de orden no encontrados");
+            const response = await this.service.getById(idOrder);
+            return httpResponse.Ok(res, response);
+        } catch (error) {
+            next(error);
+        }
+
+    }
+
+    updateStatusOrder = async (req: Request, res: Response, next: NextFunction) => {
         try {
             const { id } = req.params;
+            const restaurant = req.user?.restaurant;
+            if (!restaurant) throw new NotFoundError("Datos de restaurante no encontrados")
             if (!id) throw new NotFoundError("Datos de orden no encontrados");
-            const response = await this.service.update(id, req.body);
+            const response = await this.service.updateStatusOrder(id, req.body, restaurant);
 
             return httpResponse.Ok(res, response);
         } catch (error) {
@@ -82,7 +95,7 @@ class OrderController {
                 : "all";
 
             // Construir filtro de waiter según query
-            let waiterParam: string | Types.ObjectId |undefined = undefined;
+            let waiterParam: string | Types.ObjectId | undefined = undefined;
             if (waiterFilter === "me") {
                 waiterParam = waiterId; // solo mis pedidos
             } else if (waiterFilter === "others") {
@@ -91,18 +104,18 @@ class OrderController {
                 waiterParam = "all"; // todos
             }
 
-            // Llamar al servicio
+            // Construir filtros solo con valores definidos
             const filters: any = {
-                status: status as string,
-                fromDate: fromDate as string,
-                toDate: toDate as string,
                 currentWaiterId: waiterId,
-                search: search as string,
             };
-            
-            if (waiterParam !== undefined) {
-                filters.waiter = waiterParam;
-            }
+
+            if (status && status !== 'undefined') filters.status = status as string;
+            if (fromDate && fromDate !== 'undefined') filters.fromDate = fromDate as string;
+            if (toDate && toDate !== 'undefined') filters.toDate = toDate as string;
+            if (search && search !== 'undefined' && search !== '') filters.search = search as string;
+            if (waiterParam !== undefined && waiterParam !== 'all') filters.waiter = waiterParam;
+
+            console.log('Filtros aplicados:', filters)
             
             const response = await this.service.getByRestaurantId(restaurant, filters);
 
@@ -140,7 +153,9 @@ class OrderController {
         }
     }
 
-    updateStatus = async (req: Request, res: Response, next: NextFunction) => {
+
+
+    updateStatusItems = async (req: Request, res: Response, next: NextFunction) => {
         try {
             const { orderId, itemId } = req.params
             const { status } = req.body
@@ -148,7 +163,7 @@ class OrderController {
             if (!validStatuses.includes(status)) throw new BadRequestError("Estado inválido")
             if (!orderId || !itemId) throw new NotFoundError("Datos de orden no encontrados")
 
-            const updatedOrder = await this.service.updateStatus(itemId, orderId, status)
+            const updatedOrder = await this.service.updateStatusItems(itemId, orderId, status)
 
             return httpResponse.Ok(res, updatedOrder)
         } catch (error) {

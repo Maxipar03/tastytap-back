@@ -1,5 +1,4 @@
 import { tableServices } from "../services/tableService.js";
-import { getIO } from "../config/socket.js";
 import { TableService } from "../types/table.js";
 import { Request, Response, NextFunction } from "express";
 import { NotFoundError, UnauthorizedError } from "../utils/customError.js";
@@ -13,7 +12,7 @@ class TableController {
         this.service = services;
     }
 
-    getTablesWithSeatsAndOrders = async (req: Request, res: Response, next: NextFunction) => {
+    getTablesWithOrders = async (req: Request, res: Response, next: NextFunction) => {
         try {
             const restaurant = req.user?.restaurant
             const waiterId = req.user?.id;
@@ -21,7 +20,7 @@ class TableController {
             if(!restaurant) throw new NotFoundError("No se encontro el restaurante")
             if(!waiterId) throw new NotFoundError("No se encontro el mesero")
 
-            const data = await this.service.getTablesWithSeatsAndOrders(restaurant,);
+            const data = await this.service.getTablesWithOrders(restaurant);
             return httpResponse.Ok(res,{restaurant, waiterId, data});
         } catch (err) {
             console.error(err)
@@ -48,19 +47,20 @@ class TableController {
 
     updateTable = async (req: Request, res: Response, next: NextFunction) => {
         try {
-            const restaurant = req.user?.restaurant
-            if(!restaurant) throw new Error("No se encontro el restaurante")
+            const restaurant = req.user?.restaurant;
+            if(!restaurant) throw new NotFoundError("No se encontro el restaurante");
+            
             const { tableId } = req.params;
-            if(!tableId) throw new Error("No se encontro la mesa")
-            const io = getIO();
+            if(!tableId) throw new NotFoundError("No se encontro la mesa");
+            
             const updatedTable = await this.service.update(tableId, {
                 state: "available",
                 waiterServing: null,
-            });
-            io.to(`restaurant-${restaurant}`).emit("mesa-actualizada", updatedTable);
-            return res.status(200).json({ message: "Mesa actualizada", data: updatedTable });
+            }, restaurant);
+            
+            return httpResponse.Ok(res, { message: "Mesa actualizada", data: updatedTable });
         } catch (error) {
-            console.error('Error al actualizar mesa:', error);
+            next(error);
         }
     }
 

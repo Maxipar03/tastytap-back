@@ -58,12 +58,6 @@ export const initSocketIO = (httpServer: HttpServer) => {
       console.log(`Mozo ${waiterId} unido a su sala personal`);
     });
 
-    socket.on("join-table", ({ tableId }) => {
-      socket.join(`table-${tableId}`);
-      socket.data.tableId = tableId;
-      console.log(`Cliente unido a la mesa ${tableId}`);
-    });
-
     socket.on("disconnect", () => {
       console.log("Cliente desconectado:", socket.id);
     });

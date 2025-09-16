@@ -11,10 +11,35 @@ class CategoryMongoDao extends MongoDao<CategoryDB, CreateCategoryDto> {
         super(model);
     }
 
-    categoryByRestaurant = async (id: string | Types.ObjectId): Promise<CategoryDB[]> => {
+    categoryByRestaurant = async (id: string | Types.ObjectId): Promise<any[]> => {
         try {
             if (!Types.ObjectId.isValid(id)) throw new BadRequestError("ID inválido");
-            return (await this.model.find({ restaurant: id }).lean()) as CategoryDB[];
+            return await this.model.aggregate([
+                { $match: { restaurant: new Types.ObjectId(id) } },
+                {
+                    $lookup: {
+                        from: 'foods',
+                        localField: '_id',
+                        foreignField: 'category',
+                        as: 'foods'
+                    }
+                },
+                {
+                    $addFields: {
+                        foodCount: { $size: '$foods' }
+                    }
+                },
+                {
+                    $project: {
+                        _id: 1,
+                        name: 1,
+                        restaurant: 1,
+                        createdAt: 1,
+                        updatedAt: 1,
+                        foodCount: 1
+                    }
+                }
+            ]);
         } catch (error) {
             console.error("Error en categoryByRestaurant:", error);
             throw error;
@@ -24,7 +49,32 @@ class CategoryMongoDao extends MongoDao<CategoryDB, CreateCategoryDto> {
     getByRestaurant = async (id: string | Types.ObjectId) => {
         try {
             if (!Types.ObjectId.isValid(id)) throw new BadRequestError("ID inválido");
-            return (await this.model.find({ restaurant: id }).lean()) as CategoryDB[];
+            return await this.model.aggregate([
+                { $match: { restaurant: new Types.ObjectId(id) } },
+                {
+                    $lookup: {
+                        from: 'foods',
+                        localField: '_id',
+                        foreignField: 'category',
+                        as: 'foods'
+                    }
+                },
+                {
+                    $addFields: {
+                        foodCount: { $size: '$foods' }
+                    }
+                },
+                {
+                    $project: {
+                        _id: 1,
+                        name: 1,
+                        restaurant: 1,
+                        createdAt: 1,
+                        updatedAt: 1,
+                        foodCount: 1
+                    }
+                }
+            ]);
         } catch (error) {
             console.error("Error en categoryByRestaurant:", error);
             throw error;

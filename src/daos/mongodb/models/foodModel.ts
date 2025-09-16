@@ -20,7 +20,8 @@ const FoodSchema = new Schema <FoodDB>({
     category: {
         type: Schema.Types.ObjectId,
         ref: 'category',
-        required: true
+        required: false,
+        default: null
     },
     options: [{
         type: {

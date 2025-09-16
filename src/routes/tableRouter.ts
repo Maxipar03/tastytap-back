@@ -9,7 +9,7 @@ const router = Router();
 
 router.get("/", verifyTokenUser, checkRole(["waiter", "admin"]), tableController.getByRestaurat);
 
-router.get("/orders", verifyTokenUser, checkRole(["waiter", "admin"]), tableController.getTablesWithSeatsAndOrders);
+router.get("/orders", verifyTokenUser, checkRole(["waiter", "admin"]), tableController.getTablesWithOrders);
 
 router.put("/update/:tableId", verifyTokenUser, checkRole(["waiter", "admin"]), validateJoi(validateUpdateTable, "body"), validateJoi(validateTableObjectId, "params"), tableController.updateTable)
 

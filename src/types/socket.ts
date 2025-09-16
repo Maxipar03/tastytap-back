@@ -16,7 +16,6 @@ interface JoinTablePayload {
 export interface ClientToServerEvents {
     'join-restaurant': (payload: JoinRestaurantPayload) => void;
     'join-waiter': (payload: JoinWaiterPayload) => void;
-    'join-table': (payload: JoinTablePayload) => void;
 }
 
 export interface SocketData {

@@ -12,7 +12,7 @@ class OrderMongoDao extends MongoDao<OrderDB, CreateOrderDto> {
         super(model);
     }
 
-    updateStatus = async (itemId: string | Types.ObjectId, orderId: string | Types.ObjectId, newStatus: string): Promise<OrderDB | null> => {
+    updateStatusItems = async (itemId: string | Types.ObjectId, orderId: string | Types.ObjectId, newStatus: string): Promise<OrderDB | null> => {
         try {
 
             if (!Types.ObjectId.isValid(orderId) || !Types.ObjectId.isValid(itemId)) throw new BadRequestError("ID inválido");
@@ -30,7 +30,7 @@ class OrderMongoDao extends MongoDao<OrderDB, CreateOrderDto> {
                 },
                 { new: true },
             )
-            
+
 
             return updatedOrder as OrderDB | null
         } catch (error) {
@@ -39,53 +39,85 @@ class OrderMongoDao extends MongoDao<OrderDB, CreateOrderDto> {
         }
     }
 
-    getByRestaurantId = async (restaurant: string | Types.ObjectId,  filters: OrderFilters): Promise<OrderDB[]> => {
+    getById = async (id: string | Types.ObjectId): Promise<OrderDB | null> => {
+        try {
+            if (!Types.ObjectId.isValid(id)) throw new BadRequestError("ID inválido");
+            return (await this.model.findById(id)
+                .populate("waiterId", "name email role")
+                .populate("tableId", "tableNumber status")
+                .lean()) as OrderDB | null;
+        } catch (error) {
+            throw error
+        }
+    };
+
+    getByRestaurantId = async (restaurant: string | Types.ObjectId, filters: OrderFilters): Promise<OrderDB[]> => {
         try {
 
             if (!Types.ObjectId.isValid(restaurant)) throw new BadRequestError("ID inválido");
 
-            // 🆕 Construir el objeto de consulta dinámicamente
+            // Construir el objeto de consulta dinámicamente
             const query: any = { restaurant: restaurant };
 
+            // Filtro por status de la orden (no de los items)
             if (filters.status) {
-                query["items.status"] = filters.status;
+                query.status = filters.status;
             }
 
-            // 🆕 Filtro por mozo
+            // Filtro por mozo
             if (filters.waiter) {
                 if (filters.waiter === "me" && filters.currentWaiterId) {
                     query.waiterId = filters.currentWaiterId;
                 } else if (filters.waiter === "others" && filters.currentWaiterId) {
                     query.waiterId = { $ne: filters.currentWaiterId };
+                } else if (typeof filters.waiter === 'string' && Types.ObjectId.isValid(filters.waiter)) {
+                    query.waiterId = filters.waiter;
                 }
+                // Si waiter es "all", no agregamos filtro de waiterId
             }
 
-            // 🆕 Filtro por rango de fechas
+            // Filtro por rango de fechas
             if (filters.fromDate || filters.toDate) {
                 query.createdAt = {};
                 if (filters.fromDate) {
                     query.createdAt.$gte = new Date(filters.fromDate);
                 }
                 if (filters.toDate) {
-                    // Agrega 23 horas, 59 minutos y 59 segundos para incluir todo el día
                     const endOfDay = new Date(filters.toDate);
                     endOfDay.setHours(23, 59, 59, 999);
                     query.createdAt.$lte = endOfDay;
                 }
             }
 
-            // 🔍 Filtro de búsqueda por texto
+            // Filtro de búsqueda por texto
             if (filters.search) {
                 const searchRegex = new RegExp(filters.search, 'i');
-                query.$or = [
-                    { _id: Types.ObjectId.isValid(filters.search) ? new Types.ObjectId(filters.search) : null },
-                    { userName: searchRegex },
-                    { "items._id": Types.ObjectId.isValid(filters.search) ? new Types.ObjectId(filters.search) : null }
-                ].filter(condition => condition._id !== null || condition.userName || condition["items._id"] !== null);
+                const searchConditions = [];
+                
+                // Buscar por ID de orden si es un ObjectId válido
+                if (Types.ObjectId.isValid(filters.search)) {
+                    searchConditions.push({ _id: new Types.ObjectId(filters.search) });
+                }
+                
+                // Buscar por nombre de usuario
+                searchConditions.push({ userName: searchRegex });
+                
+                // Buscar por nombre de comida en items
+                searchConditions.push({ "items.foodName": searchRegex });
+                
+                if (searchConditions.length > 0) {
+                    query.$or = searchConditions;
+                }
             }
 
-            // 🆕 Ejecutar la consulta con los filtros
-            return (await this.model.find(query).populate("waiterId", "name").lean()) as OrderDB[];
+            console.log('Query MongoDB:', JSON.stringify(query, null, 2));
+
+            // Ejecutar la consulta con los filtros
+            return (await this.model.find(query)
+                .populate("waiterId", "name")
+                .populate("tableId", "tableNumber")
+                .sort({ createdAt: -1 })
+                .lean()) as OrderDB[];
         } catch (error) {
             console.error("Error fetching orders by restaurant:", error);
             throw error
@@ -102,14 +134,39 @@ class OrderMongoDao extends MongoDao<OrderDB, CreateOrderDto> {
         }
     };
 
-    getBySeatId = async (seatId: string | Types.ObjectId): Promise<OrderDB[]> => {
+    getByTableId = async (tableId: string | Types.ObjectId): Promise<OrderDB[]> => {
         try {
-            if (!Types.ObjectId.isValid(seatId)) throw new BadRequestError("ID inválido");
-            const orders = await this.model.find({ seatId });
+            if (!Types.ObjectId.isValid(tableId)) throw new BadRequestError("ID inválido");
+            const orders = await this.model.find({
+                tableId,
+                status: "pending"
+            });
             return orders as OrderDB[];
         } catch (error) {
-            console.error("Error fetching orders by restaurant:", error);
+            console.error("Error fetching orders by table:", error);
             throw error
+        }
+    };
+
+    addItemsToOrder = async (orderId: string | Types.ObjectId, items: any[]): Promise<OrderDB | null> => {
+        try {
+            if (!Types.ObjectId.isValid(orderId)) throw new BadRequestError("ID inválido");
+            
+            const updatedOrder = await this.model.findByIdAndUpdate(
+                orderId,
+                { 
+                    $push: { items: { $each: items } },
+                    updatedAt: new Date()
+                },
+                { new: true }
+            ).populate([
+                { path: "waiterId", select: "name email role" },
+                { path: "tableId", select: "tableNumber status" }
+            ]);
+            
+            return updatedOrder as OrderDB | null;
+        } catch (error) {
+            throw error;
         }
     };
 

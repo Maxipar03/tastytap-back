@@ -12,14 +12,14 @@ export interface OrderFilters {
     status?: string;
     fromDate?: string;
     toDate?: string;
-    waiter?: string  | Types.ObjectId;
+    waiter?: string | Types.ObjectId;
     currentWaiterId?: string | Types.ObjectId;
     search?: string;
 }
 
 export interface OrderItemOption {
     name: string;
-    value: any; 
+    value: any;
 }
 
 export interface OrderItem {
@@ -42,7 +42,6 @@ export interface OrderDB extends Document {
     items: OrderItem[];
     tableId: Types.ObjectId;
     restaurant: Types.ObjectId;
-    seatId: Types.ObjectId;
     waiterId?: Types.ObjectId;
     status: OrderStatus;
     clientId?: Types.ObjectId;
@@ -54,21 +53,30 @@ export interface OrderDB extends Document {
     updatedAt: Date;
 }
 
-export interface OrderDao{
-        create: (body: CreateOrderDto) => Promise<OrderDB>;
-        update: (id:string | Types.ObjectId, body: Partial<OrderDB>) => Promise<OrderDB | null>;
-        updateStatus: (itemId:string | Types.ObjectId, orderId:string | Types.ObjectId, status: OrderStatus) => Promise<OrderDB | null>;
-        getByRestaurantId: (restaurant: string | Types.ObjectId, filters: OrderFilters) => Promise<OrderDB[]>;
-        getByUserId: (userId: string | Types.ObjectId) => Promise<OrderDB[]>;
-        getBySeatId: (seatId: string | Types.ObjectId) => Promise<OrderDB[]>;
+export interface OrderDao {
+    create: (body: CreateOrderDto) => Promise<OrderDB>;
+    update: (id: string | Types.ObjectId, body: Partial<OrderDB>) => Promise<OrderDB | null>;
+    updateStatusItems: (itemId: string | Types.ObjectId, orderId: string | Types.ObjectId, status: OrderStatus) => Promise<OrderDB | null>;
+    addItemsToOrder: (orderId: string | Types.ObjectId, items: OrderItem[]) => Promise<OrderDB | null>;
+    getByRestaurantId: (restaurant: string | Types.ObjectId, filters: OrderFilters) => Promise<OrderDB[]>;
+    getById: (id: string | Types.ObjectId) => Promise<OrderDB | null>;
+    getByUserId: (userId: string | Types.ObjectId) => Promise<OrderDB[]>;
+    getByTableId: (tableId: string | Types.ObjectId) => Promise<OrderDB[]>;
+}
+
+export interface CreateOrderResponse {
+    order: OrderDB;
+    token: string;
 }
 
 export interface OrderService {
-    create(orderData: CreateOrderDto): Promise<OrderDB>;
-    update(id: string | Types.ObjectId, orderData: Partial<OrderDB>): Promise<OrderDB | null>;
-    updateStatus(itemId: string | Types.ObjectId, orderId: string | Types.ObjectId, status: OrderStatus): Promise<OrderDB | null>;
+    create(orderData: CreateOrderDto): Promise<CreateOrderResponse>;
+    updateStatusOrder(id: string | Types.ObjectId, orderData: Partial<OrderDB>, restaurant: string | Types.ObjectId): Promise<OrderDB | null>;
+    updateStatusItems(itemId: string | Types.ObjectId, orderId: string | Types.ObjectId, status: OrderStatus): Promise<OrderDB | null>;
+    addItemsToOrder(orderId: string | Types.ObjectId, items: OrderItem[]): Promise<OrderDB | null>;
     getByRestaurantId(restaurant: string | Types.ObjectId, filters: OrderFilters): Promise<OrderDB[]>;
+    getById: (id: string | Types.ObjectId) => Promise<OrderDB | null>;
     getByUserId(userId: string | Types.ObjectId): Promise<OrderDB[]>;
-    getBySeatId(seatId: string | Types.ObjectId): Promise<OrderDB[]>;
+    getByTableId(tableId: string | Types.ObjectId): Promise<OrderDB[]>;
 }
 
