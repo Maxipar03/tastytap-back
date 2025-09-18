@@ -82,7 +82,7 @@ class FoodController {
             const foodData = {
                 ...req.body,
                 restaurant: req.user.restaurant,
-                ingredients: req.body.ingredients,
+                ingredients: typeof req.body.ingredients === 'string' ? JSON.parse(req.body.ingredients) : req.body.ingredients,
                 options: typeof req.body.options === 'string' ? JSON.parse(req.body.options) : req.body.options,
                 image: imageUrl
             };
@@ -119,7 +119,7 @@ class FoodController {
 
             const updateData = {
                 ...req.body,
-                ingredients: req.body.ingredients,
+                ingredients: typeof req.body.ingredients === 'string' ? JSON.parse(req.body.ingredients) : req.body.ingredients,
                 options: typeof req.body.options === 'string' ? JSON.parse(req.body.options) : req.body.options,
                 image: imageUrl
             };
