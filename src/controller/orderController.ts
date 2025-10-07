@@ -168,22 +168,22 @@ class OrderController {
         }
     };
 
-    callWaiter = async (req: Request, res: Response, next: NextFunction) => {
-        try {
-            const tableData = req.mesaData;
+    // callWaiter = async (req: Request, res: Response, next: NextFunction) => {
+    //     try {
+    //         const tableData = req.mesaData;
 
-            if (!tableData) throw new NotFoundError("Datos de mesa no encontrados");
+    //         if (!tableData) throw new NotFoundError("Datos de mesa no encontrados");
 
-            const response = await this.service.callWaiter(
-                tableData.tableId,
-                tableData.waiterId,
-            );
+    //         const response = await this.service.callWaiter(
+    //             tableData.tableId,
+    //             tableData.waiterId,
+    //         );
 
-            return httpResponse.Ok(res, response);
-        } catch (error) {
-            next(error);
-        }
-    }
+    //         return httpResponse.Ok(res, response);
+    //     } catch (error) {
+    //         next(error);
+    //     }
+    // }
 
     updateStatusItems = async (req: Request, res: Response, next: NextFunction) => {
         try {
