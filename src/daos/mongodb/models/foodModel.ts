@@ -29,6 +29,10 @@ const FoodSchema = new Schema <FoodDB>({
             enum: ['radio', 'checkbox'],
             required: true
         },
+        required: {
+            type: Boolean,
+            default: false
+        },
         name: {
             type: String,
             required: true
@@ -38,10 +42,6 @@ const FoodSchema = new Schema <FoodDB>({
             price: { type: Number, default: 0, min: 0 }
         }]
     }],
-    available: {
-        type: Boolean,
-        default: true
-    },
     stock: {
         type: Number,
         default: 0,
@@ -67,12 +67,6 @@ const FoodSchema = new Schema <FoodDB>({
         type: Schema.Types.ObjectId,
         ref: 'restaurant',
         required: true
-    },
-    spicyLevel: {
-        type: Number,
-        min: 0,
-        max: 3,
-        default: 0
     },
     image: {
         type: String,

@@ -2,11 +2,13 @@ import { Types } from "mongoose";
 import { JwtPayload } from "jsonwebtoken";
 
 export interface UserPayload {
+    [x: string]: ObjectId;
     id: Types.ObjectId;
     name: string;
     email: string;
     role: string;
     restaurant: Types.ObjectId;
+    profileImage?: string;
 }
 
 export interface QRCodePayload {

@@ -17,12 +17,18 @@ export interface OrderFilters {
     search?: string;
 }
 
+export interface OrderItemOptionValue {
+    label: string;
+    price: number;
+}
+
 export interface OrderItemOption {
     name: string;
-    value: any;
+    values: OrderItemOptionValue[];
 }
 
 export interface OrderItem {
+    foodId: Types.ObjectId;
     foodName: string;
     quantity: number;
     price: number;

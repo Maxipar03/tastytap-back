@@ -1,6 +1,7 @@
 import { orderMongoDao } from "../daos/mongodb/orderDao.js";
+import { foodMongoDao } from "../daos/mongodb/foodDao.js";
 import { getIO } from "../config/socket.js";
-import { CustomError, NotFoundError } from "../utils/customError.js";
+import { CustomError, NotFoundError, OrderReadyError } from "../utils/customError.js";
 import { CreateOrderDto } from "../DTO/orderDto.js";
 import { OrderFilters } from "../types/order.js";
 import { UserModel } from "../daos/mongodb/models/userModel.js";
@@ -22,6 +23,16 @@ export default class OrderService {
 
             const userId = body.clientId;
 
+            // Descontar stock de cada item
+            for (const item of body.items) {
+                if (item.foodId) {
+                    const food = await foodMongoDao.getById(item.foodId.toString());
+                    if (food && food.stock > 0 && food.stock >= item.quantity) await foodMongoDao.decreaseStock(item.foodId, item.quantity);
+                    if (food && food.stock <= 0 && food.stock <= item.quantity) throw new OrderReadyError(`No hay suficiente stock de ${food.name} para completar la orden`);
+
+                }
+            }
+
             const response = await this.dao.create(body);
             if (!response) throw new CustomError("Error al crear el plato", 500);
 
@@ -29,12 +40,14 @@ export default class OrderService {
 
             const populatedOrder = await response
                 .populate([
-                    { path: "waiterId", select: "name email role" },
+                    { path: "waiterId", select: "name email role profileImage" },
                     { path: "tableId", select: "tableNumber status" },
                 ])
 
             const orderToken = generateToken({ orderId: populatedOrder._id })
             const io = getIO();
+
+            console.log(body)
 
             // 🔔 Emitir al mozo asignado
             if (body.waiterId) {
@@ -46,7 +59,7 @@ export default class OrderService {
 
 
             // 🍽️ Emitir a la cocina y administración
-            io.to(`restaurant-${body.restaurant._id}`).emit("nueva-orden", {
+            io.to(`restaurant-${body.restaurant}`).emit("nueva-orden", {
                 order: populatedOrder,
                 timestamp: new Date()
             });
@@ -66,11 +79,11 @@ export default class OrderService {
             // Verificar si la orden está completada y es la última de la mesa
             if (body.status === "ready") {
                 const tableOrders = await this.dao.getByTableId(response.tableId);
-                const activeOrders = tableOrders.filter(order => 
-                    order._id.toString() !== id && 
-                    order.status !== "ready" 
+                const activeOrders = tableOrders.filter(order =>
+                    order._id.toString() !== id &&
+                    order.status !== "ready"
                 );
-                
+
                 // Si no hay más órdenes activas, liberar la mesa
                 if (activeOrders.length === 0) {
                     await tableServices.update(response.tableId, { state: "available", waiterServing: null }, restaurant);
@@ -113,22 +126,22 @@ export default class OrderService {
         }
     };
 
-    callWaiter = async (tableId: string | Types.ObjectId, waiterId: string | Types.ObjectId) => {
-        try {
-            const io = getIO();
+    // callWaiter = async (tableId: string | Types.ObjectId, waiterId: string | Types.ObjectId) => {
+    //     try {
+    //         const io = getIO();
 
-            io.to(`waiter-${waiterId}`).emit("llamada-mesa", {
-                tableId: tableId,
-                timestamp: new Date(),
-                message: `La mesa ${tableId} necesita atención`
-            });
+    //         io.to(`waiter-${waiterId}`).emit("llamada-mesa", {
+    //             tableId: tableId,
+    //             timestamp: new Date(),
+    //             message: `La mesa ${tableId} necesita atención`
+    //         });
 
-            return { success: true, message: "Llamada enviada al mozo" };
+    //         return { success: true, message: "Llamada enviada al mozo" };
 
-        } catch (error) {
-            throw error
-        }
-    }
+    //     } catch (error) {
+    //         throw error
+    //     }
+    // }
 
     getById = async (id: string | Types.ObjectId): Promise<OrderDB | null> => {
         try {
@@ -140,11 +153,36 @@ export default class OrderService {
         }
     };
 
-    updateStatusItems = async (itemId: string | Types.ObjectId, orderId: string | Types.ObjectId, newStatus: OrderStatus): Promise<OrderDB | null> => {
+    updateStatusItems = async (orderId: string | Types.ObjectId, itemId: string | Types.ObjectId, newStatus: OrderStatus): Promise<OrderDB | null> => {
         try {
-
-            const updatedOrder = await this.dao.updateStatusItems(itemId, orderId, newStatus)
+            const updatedOrder = await this.dao.updateStatusItems(orderId, itemId, newStatus)
             if (!updatedOrder) throw new CustomError("No se encontró la orden o el item", 404)
+
+            if (newStatus === "cancelled") {
+                const activeItems = updatedOrder.items.filter(item => item.status !== "cancelled")
+
+                const newSubtotal = activeItems.reduce(
+                    (subtotal, item) => subtotal + (item.price * item.quantity),
+                    0
+                )
+                const newTax = newSubtotal * 0.08 // 8% de impuesto
+                const newTotal = newSubtotal + newTax
+
+                // Actualizar en la DB
+                await this.dao.update(orderId, {
+                    "pricing.subtotal": newSubtotal,
+                    "pricing.tax": newTax,
+                    "pricing.total": newTotal
+                } as any)
+
+                // Reflejar en el objeto que ya tenés cargado
+                if (!(updatedOrder as any).pricing) {
+                    (updatedOrder as any).pricing = {}
+                }
+                (updatedOrder as any).pricing.subtotal = newSubtotal as number
+                (updatedOrder as any).pricing.tax = newTax as number
+                (updatedOrder as any).pricing.total = newTotal
+            }
 
             const { restaurant, waiterId } = updatedOrder
 
@@ -155,6 +193,7 @@ export default class OrderService {
                 orderId,
                 itemId,
                 newStatus,
+                tableId: updatedOrder.tableId,
                 order: updatedOrder,
                 type: "item",
             })
@@ -165,6 +204,7 @@ export default class OrderService {
                     orderId,
                     itemId,
                     newStatus,
+                    tableId: updatedOrder.tableId,
                     order: updatedOrder,
                     type: "item",
                 })
@@ -179,11 +219,29 @@ export default class OrderService {
 
     addItemsToOrder = async (orderId: string | Types.ObjectId, items: any[]): Promise<OrderDB | null> => {
         try {
+            // Verificar el estado actual de la orden
+            const currentOrder = await this.dao.getById(orderId);
+            if (!currentOrder) throw new NotFoundError("No se encontró la orden");
+
+            // Si la orden está lista, lanzar error
+            if (currentOrder.status === "ready") {
+                throw new OrderReadyError();
+            }
+
+            // Descontar stock de cada item nuevo
+            for (const item of items) {
+                if (item.foodId) {
+                    const food = await foodMongoDao.getById(item.foodId.toString());
+                    if (food && food.stock > 0 && food.stock >= item.quantity) await foodMongoDao.decreaseStock(item.foodId, item.quantity);
+                    if (food && food.stock <= 0 && food.stock <= item.quantity) throw new OrderReadyError(`No hay suficiente stock de ${food.name} para completar la orden`);
+                }
+            }
+
             const updatedOrder = await this.dao.addItemsToOrder(orderId, items);
             if (!updatedOrder) throw new NotFoundError("No se encontró la orden");
-            
+
             const io = getIO();
-            
+
             // Emitir al mozo y restaurante
             if (updatedOrder.waiterId) {
                 io.to(`waiter-${updatedOrder.waiterId}`).emit("items-agregados", {
@@ -191,12 +249,12 @@ export default class OrderService {
                     timestamp: new Date()
                 });
             }
-            
+
             io.to(`restaurant-${updatedOrder.restaurant}`).emit("items-agregados", {
                 order: updatedOrder,
                 timestamp: new Date()
             });
-            
+
             return updatedOrder;
         } catch (error) {
             throw error;

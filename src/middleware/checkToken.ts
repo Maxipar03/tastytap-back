@@ -73,6 +73,7 @@ const createUserTokenMiddleware = (isOptional: boolean = false) => {
             restaurant: userData.restaurant,
             role: userData.role,
             email: userData.email,
+            ...(userData.profileImage && { profileImage: userData.profileImage })
         };
 
         next();
@@ -105,7 +106,6 @@ export const verifyTokenOrder = (req: Request, res: Response, next: NextFunction
         next();
     })
 }
-
 
 const createOrderTokenMiddleware = (isOptional: boolean = false) => {
     return (req: Request, res: Response, next: NextFunction) => {

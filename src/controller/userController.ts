@@ -21,22 +21,26 @@ class UserController {
             if (!req.user) throw new BadRequestError("No se encontro el usuario")
 
             const userPayload: UserPayload & JwtPayload = {
-                id: req.user.id,
+                id: req.user._id,
                 name: req.user.name,
                 email: req.user.email,
                 role: req.user.role,
-                restaurant: req.user.restaurant
+                restaurant: req.user.restaurant,
+                ...(req.user.profileImage && { profileImage: req.user.profileImage })
             };
 
             const token = generateToken(userPayload);
 
             res.cookie('user_info', token,{
                 httpOnly: true,
-                secure: true,    
-                sameSite: 'none',
+                secure: process.env.NODE_ENV === 'production',    
+                sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
             });
 
-            return httpResponse.Created(res, { user: req.user })
+            const tokenTable = req.cookies.access_token;
+            const redirectUrl = tokenTable ? 'http://localhost:3000/menu' : 'http://localhost:3000/';
+            
+            return res.redirect(redirectUrl);
         } catch (error) {
             next(error);
         }
@@ -78,7 +82,8 @@ class UserController {
                 name: user.name,
                 email: user.email,
                 role: user.role,
-                restaurant: user.restaurant!
+                restaurant: user.restaurant!,
+                ...(user.profileImage && { profileImage: user.profileImage })
             };
 
             const token = generateToken(userPayload);

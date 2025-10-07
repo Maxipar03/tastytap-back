@@ -12,6 +12,14 @@ export const createCategorySchema = Joi.object({
     name: Joi.string().min(3).max(50).required(),
 });
 
+export const updateCategorySchema = Joi.object({
+    name: Joi.string().min(3).max(50).required(),
+});
+
+export const updateCategoryParamsSchema = Joi.object({
+    id: objectId.required(),
+});
+
 export const deleteCategorySchema = Joi.object({
     id: objectId.required(),
 });

@@ -5,6 +5,7 @@ import { Request, Response, NextFunction } from "express";
 import { MenuFiltersDto } from "../DTO/menuFiltersDto.js";
 import { httpResponse } from "../utils/http-response.js";
 import { BadRequestError, NotFoundError, UnauthorizedError } from "../utils/customError.js";
+import { deleteImageFromCloudinary } from "../utils/cloudinaryUtils.js";
 
 class FoodController {
 
@@ -36,13 +37,11 @@ class FoodController {
             const restaurant = req.mesaData?.restaurant;
             if (!restaurant) throw new BadRequestError("No se encontro el id del restaurante")
 
-            const { category, minPrice, maxPrice, search, available, isVegetarian, isVegan, isGlutenFree } = req.query;
+            const { category, search, available, isVegetarian, isVegan, isGlutenFree } = req.query;
 
             const filters: MenuFiltersDto = {};
 
             if (category) filters.category = category as string;
-            if (minPrice) filters.minPrice = parseFloat(minPrice as string);
-            if (maxPrice) filters.maxPrice = parseFloat(maxPrice as string);
             if (search) filters.search = search as string;
             if (available !== undefined) filters.available = available === 'true';
             if (isVegetarian !== undefined) filters.isVegetarian = isVegetarian === 'true';
@@ -75,15 +74,15 @@ class FoodController {
             console.log(req.body)
 
             if (!req.user || !req.user.restaurant) throw new UnauthorizedError("Datos de usuario o restaurante no encontrados");
-            if (!req.body || !req.body.ingredients || !req.body.options) throw new NotFoundError("Datos de comida no encontradosss")
+            if (!req.body || !req.body.ingredients || !req.body.options) throw new NotFoundError("Datos de comida no encontrados")
 
             const imageUrl = req.file ? await this.uploadToCloudinary(req.file) : "";
 
             const foodData = {
                 ...req.body,
                 restaurant: req.user.restaurant,
-                ingredients: typeof req.body.ingredients === 'string' ? JSON.parse(req.body.ingredients) : req.body.ingredients,
-                options: typeof req.body.options === 'string' ? JSON.parse(req.body.options) : req.body.options,
+                ingredients: JSON.parse(req.body.ingredients),
+                options: JSON.parse(req.body.options),
                 image: imageUrl
             };
 
@@ -114,19 +113,29 @@ class FoodController {
             if (!req.user || !req.user.restaurant) throw new UnauthorizedError("Datos de usuario o restaurante no encontrados");
             
             let imageUrl: string | undefined;
+            let oldImageUrl: string | undefined;
 
-            if (req.file) imageUrl = await this.uploadToCloudinary(req.file);
+            if (req.file) {
+                const currentFood = await this.service.getById(id);
+                oldImageUrl = currentFood?.image;
+                imageUrl = await this.uploadToCloudinary(req.file);
+            }
 
             const updateData = {
                 ...req.body,
-                ingredients: typeof req.body.ingredients === 'string' ? JSON.parse(req.body.ingredients) : req.body.ingredients,
-                options: typeof req.body.options === 'string' ? JSON.parse(req.body.options) : req.body.options,
+                ingredients: JSON.parse(req.body.ingredients),
+                options: JSON.parse(req.body.options),
                 image: imageUrl
             };
 
             if (imageUrl) updateData.image = imageUrl;
 
             const response = await this.service.update(id, req.user, updateData);
+            
+            if (oldImageUrl && imageUrl) {
+                await deleteImageFromCloudinary(oldImageUrl);
+            }
+            
             return httpResponse.Ok(res, response);
         } catch (error) {
             next(error);
@@ -147,4 +156,4 @@ class FoodController {
 
 }
 
-export const foodController = new FoodController(foodService)
+export const foodController = new FoodController(foodService);

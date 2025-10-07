@@ -6,6 +6,7 @@ import { Types } from "mongoose";
 import { MenuFiltersDto } from "../DTO/menuFiltersDto.js";
 import { FoodDao, FoodDB } from "../types/food.js";
 import { UserDB } from "../types/user.js";
+import { deleteImageFromCloudinary } from "../utils/cloudinaryUtils.js";
 
 export default class FoodService {
     private dao: FoodDao
@@ -54,7 +55,6 @@ export default class FoodService {
     update = async (id: string, userData: UserDB, body: Partial<FoodDB>) => {
         try {
             const currentFood = await this.getById(id)
-            console.log("currentFood", currentFood)
             if (userData.restaurant?.toString() !== currentFood.restaurant.toString()) throw new UnauthorizedError("No tienes permiso para modificar este dato");
             const response = await this.dao.update(id, body);
             if (!response) throw new NotFoundError("No se encontro el plato");
@@ -69,6 +69,11 @@ export default class FoodService {
             const food = await this.getById(id);
             if (userData.restaurant?.toString() !== food.restaurant.toString()) throw new UnauthorizedError("No tienes permiso para modificar este dato");
             if (!food) throw new NotFoundError("No se encontro el plato");
+            
+            if (food.image) {
+                await deleteImageFromCloudinary(food.image);
+            }
+            
             const response = await this.dao.delete(id);
             if (food.restaurant) await RestaurantModel.findByIdAndUpdate(food.restaurant, { $pull: { menu: id } })
             return response;

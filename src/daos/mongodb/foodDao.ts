@@ -36,17 +36,11 @@ class FoodMongoDao extends MongoDao<FoodDB, CreateFoodDto> {
             if (filters.category) {
                 menuMatch.category = filters.category;
             }
-            if (filters.minPrice) {
-                menuMatch.price = { ...menuMatch.price, $gte: filters.minPrice };
-            }
-            if (filters.maxPrice) {
-                menuMatch.price = { ...menuMatch.price, $lte: filters.maxPrice };
-            }
             if (filters.search) {
                 menuMatch.name = { $regex: escapeRegex(filters.search), $options: 'i' };
             }
             if (typeof filters.available === 'boolean') {
-                menuMatch.available = filters.available;
+                menuMatch.stock = { $gt: 0 };  
             }
             if (typeof filters.isVegetarian === 'boolean') {
                 menuMatch.isVegetarian = filters.isVegetarian;
@@ -74,6 +68,20 @@ class FoodMongoDao extends MongoDao<FoodDB, CreateFoodDto> {
             );
         } catch (error) {
             console.error("Error updating foods category to null:", error);
+            throw error;
+        }
+    }
+
+    async decreaseStock(foodId: string | Types.ObjectId, quantity: number) {
+        try {
+            if (!Types.ObjectId.isValid(foodId)) throw new BadRequestError("ID inválido");
+            return await this.model.findByIdAndUpdate(
+                foodId,
+                { $inc: { stock: -quantity } },
+                { new: true }
+            );
+        } catch (error) {
+            console.error("Error decreasing stock:", error);
             throw error;
         }
     }

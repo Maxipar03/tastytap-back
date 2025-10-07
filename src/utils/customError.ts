@@ -37,3 +37,10 @@ export class ForbiddenError extends CustomError {
         this.name = "ForbiddenError";
     }
 }
+
+export class OrderReadyError extends CustomError {
+    constructor(message: string = "No se pueden agregar items a una orden que ya está lista") {
+        super(message, 409); // 409 Conflict
+        this.name = "OrderReadyError";
+    }
+}

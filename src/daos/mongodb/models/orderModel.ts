@@ -1,5 +1,18 @@
 import { Schema, model } from "mongoose";
-import { OrderDB, OrderItem, OrderItemOption, OrderPricing } from "../../../types/order.js"
+import { OrderDB, OrderItem, OrderItemOption, OrderItemOptionValue, OrderPricing } from "../../../types/order.js"
+
+const orderItemOptionValueSchema = new Schema < OrderItemOptionValue > ({
+    label: {
+        type: String,
+        required: true,
+        trim: true,
+    },
+    price: {
+        type: Number,
+        required: true,
+        default: 0,
+    },
+});
 
 const orderItemOptionSchema = new Schema < OrderItemOption > ({
     name: {
@@ -7,13 +20,15 @@ const orderItemOptionSchema = new Schema < OrderItemOption > ({
         required: true,
         trim: true,
     },
-    value: {
-        type: Schema.Types.Mixed,
-        required: true,
-    },
+    values: [orderItemOptionValueSchema],
 });
 
 const orderItemSchema = new Schema < OrderItem > ({
+    foodId: {
+        type: Schema.Types.ObjectId,
+        ref: "food",
+        required: true,
+    },
     foodName: {
         type: String,
         required: true,

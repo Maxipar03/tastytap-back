@@ -32,6 +32,8 @@ class RestaurantController {
                 numberTables
             });
 
+            // Crea la cantidad de mesas necesarias
+
             const tables = [];
 
             for (let i = 1; i <= numberTables; i++) {

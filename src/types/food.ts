@@ -11,6 +11,7 @@ export interface FoodOptionValue {
 export interface FoodOption {
     type: 'radio' | 'checkbox';
     name: string;
+    required: boolean;
     values: FoodOptionValue[];
 }
 
@@ -21,14 +22,12 @@ export interface FoodDB extends Document {
     price: number;
     category: Types.ObjectId | CategoryDB | null;
     options?: FoodOption[];
-    available: boolean;
     stock: number;
     ingredients: string[];
     isVegetarian: boolean;
     isVegan: boolean;
     isGlutenFree: boolean;
     restaurant: Types.ObjectId;
-    spicyLevel: number;
     image: string;
     createdAt: Date;
     updatedAt: Date;

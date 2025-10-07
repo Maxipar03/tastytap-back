@@ -12,7 +12,7 @@ class OrderMongoDao extends MongoDao<OrderDB, CreateOrderDto> {
         super(model);
     }
 
-    updateStatusItems = async (itemId: string | Types.ObjectId, orderId: string | Types.ObjectId, newStatus: string): Promise<OrderDB | null> => {
+    updateStatusItems = async (orderId: string | Types.ObjectId, itemId: string | Types.ObjectId, newStatus: string): Promise<OrderDB | null> => {
         try {
 
             if (!Types.ObjectId.isValid(orderId) || !Types.ObjectId.isValid(itemId)) throw new BadRequestError("ID inválido");
@@ -31,7 +31,7 @@ class OrderMongoDao extends MongoDao<OrderDB, CreateOrderDto> {
                 { new: true },
             )
 
-
+            console.log('Orden actualizada:', !!updatedOrder);
             return updatedOrder as OrderDB | null
         } catch (error) {
             console.error("Error fetching orders by restaurant:", error);
@@ -43,7 +43,8 @@ class OrderMongoDao extends MongoDao<OrderDB, CreateOrderDto> {
         try {
             if (!Types.ObjectId.isValid(id)) throw new BadRequestError("ID inválido");
             return (await this.model.findById(id)
-                .populate("waiterId", "name email role")
+                .populate("clientId", "name profileImage")
+                .populate("waiterId", "name profileImage")
                 .populate("tableId", "tableNumber status")
                 .lean()) as OrderDB | null;
         } catch (error) {
@@ -66,18 +67,18 @@ class OrderMongoDao extends MongoDao<OrderDB, CreateOrderDto> {
 
             // Filtro por mozo
             if (filters.waiter) {
-                if (filters.waiter === "me" && filters.currentWaiterId) {
+                if (filters.waiter === "me" && filters.currentWaiterId && Types.ObjectId.isValid(filters.currentWaiterId)) {
                     query.waiterId = filters.currentWaiterId;
-                } else if (filters.waiter === "others" && filters.currentWaiterId) {
+                } else if (filters.waiter === "others" && filters.currentWaiterId && Types.ObjectId.isValid(filters.currentWaiterId)) {
                     query.waiterId = { $ne: filters.currentWaiterId };
                 } else if (typeof filters.waiter === 'string' && Types.ObjectId.isValid(filters.waiter)) {
                     query.waiterId = filters.waiter;
                 }
-                // Si waiter es "all", no agregamos filtro de waiterId
             }
 
             // Filtro por rango de fechas
             if (filters.fromDate || filters.toDate) {
+                console.log('Filtrando por rango de fechas', filters.fromDate, filters.toDate)
                 query.createdAt = {};
                 if (filters.fromDate) {
                     query.createdAt.$gte = new Date(filters.fromDate);
@@ -94,30 +95,28 @@ class OrderMongoDao extends MongoDao<OrderDB, CreateOrderDto> {
                 const searchRegex = new RegExp(filters.search, 'i');
                 const searchConditions = [];
                 
-                // Buscar por ID de orden si es un ObjectId válido
                 if (Types.ObjectId.isValid(filters.search)) {
                     searchConditions.push({ _id: new Types.ObjectId(filters.search) });
                 }
-                
-                // Buscar por nombre de usuario
                 searchConditions.push({ userName: searchRegex });
-                
-                // Buscar por nombre de comida en items
                 searchConditions.push({ "items.foodName": searchRegex });
                 
-                if (searchConditions.length > 0) {
-                    query.$or = searchConditions;
-                }
+                // Combinar todos los filtros existentes con la búsqueda
+                const baseQuery = { ...query };
+                query.$and = [
+                    baseQuery,
+                    { $or: searchConditions }
+                ];
             }
 
-            console.log('Query MongoDB:', JSON.stringify(query, null, 2));
-
             // Ejecutar la consulta con los filtros
-            return (await this.model.find(query)
+            const results = await this.model.find(query)
                 .populate("waiterId", "name")
                 .populate("tableId", "tableNumber")
                 .sort({ createdAt: -1 })
-                .lean()) as OrderDB[];
+                .lean();
+            
+            return results as OrderDB[];
         } catch (error) {
             console.error("Error fetching orders by restaurant:", error);
             throw error
@@ -140,7 +139,9 @@ class OrderMongoDao extends MongoDao<OrderDB, CreateOrderDto> {
             const orders = await this.model.find({
                 tableId,
                 status: "pending"
-            });
+            })
+            .populate("clientId", "name profileImage")
+            .populate("waiterId", "name profileImage");
             return orders as OrderDB[];
         } catch (error) {
             console.error("Error fetching orders by table:", error);
@@ -152,10 +153,33 @@ class OrderMongoDao extends MongoDao<OrderDB, CreateOrderDto> {
         try {
             if (!Types.ObjectId.isValid(orderId)) throw new BadRequestError("ID inválido");
             
-            const updatedOrder = await this.model.findByIdAndUpdate(
+            // Primero añadir los items
+            const orderWithNewItems = await this.model.findByIdAndUpdate(
                 orderId,
                 { 
                     $push: { items: { $each: items } },
+                    updatedAt: new Date()
+                },
+                { new: true }
+            );
+
+            if (!orderWithNewItems) return null;
+
+            // Recalcular el pricing basándose en todos los items
+            const subtotal = orderWithNewItems.items.reduce((total, item) => {
+                return total + (item.price * item.quantity);
+            }, 0);
+
+            const tax = subtotal * 0.08; // 8% de impuesto, ajusta según tu necesidad
+            const total = subtotal + tax;
+
+            // Actualizar el pricing completo
+            const updatedOrder = await this.model.findByIdAndUpdate(
+                orderId,
+                { 
+                    'pricing.subtotal': subtotal,
+                    'pricing.tax': tax,
+                    'pricing.total': total,
                     updatedAt: new Date()
                 },
                 { new: true }

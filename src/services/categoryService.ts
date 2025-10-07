@@ -1,7 +1,7 @@
 import { categoryMongoDao } from "../daos/mongodb/categoryDao.js";
 import { foodMongoDao } from "../daos/mongodb/foodDao.js";
 import { CategoryDB, CategoryDao } from "../types/category.js";
-import { CreateCategoryDto } from "../DTO/categoryDto.js";
+import { CreateCategoryDto, UpdateCategoryDto } from "../DTO/categoryDto.js";
 import { Types } from "mongoose";
 
 export default class CategoryService { 
@@ -20,6 +20,14 @@ export default class CategoryService {
         }
     }
 
+    update = async (id: string | Types.ObjectId, body: UpdateCategoryDto): Promise<CategoryDB | null> => {
+        try {
+            return await this.dao.update(id, body);
+        } catch (error) {
+            throw error;
+        }
+    }
+
     delete = async (id: string | Types.ObjectId): Promise<CategoryDB | null> => {
         try {
             // Actualizar todos los productos que tienen esta categoría para que tengan category: null
@@ -27,14 +35,6 @@ export default class CategoryService {
             
             // Eliminar la categoría
             return await this.dao.delete(id);
-        } catch (error) {
-            throw error;
-        }
-    }
-
-    categoryByRestaurant = async (id: string | Types.ObjectId): Promise<any[]> => {
-        try {
-            return await this.dao.categoryByRestaurant(id);
         } catch (error) {
             throw error;
         }

@@ -9,14 +9,19 @@ const objectIdValidator = (value: any, helpers: any) => {
 };
 
 const itemSchema = Joi.object({
-    foodName: Joi.string(), // ID de MongoDB
+    foodId: Joi.string().custom(objectIdValidator, 'ObjectId validation').required(),
+    foodName: Joi.string().required(),
     options: Joi.array().items(Joi.object({
         name: Joi.string().required(),
-        value: Joi.any().required(),
+        values: Joi.array().items(Joi.object({
+            label: Joi.string().required(),
+            price: Joi.number().min(0).required(),
+        })).min(1).required(),
     })).default([]),
     price: Joi.number().positive().required(),
     quantity: Joi.number().integer().min(1).required(),
     notes: Joi.string().optional().allow(''),
+    status: Joi.string().valid('pending', 'preparing', 'ready', 'delivered', 'cancelled').default('pending'),
 });
 
 const pricingSchema = Joi.object({
@@ -49,6 +54,27 @@ export const validateItemAndTableOrder = Joi.object({
             'string.empty': 'Item ID cannot be empty',
             'any.required': 'Item ID is required',
             'any.invalid': 'Item ID must be a valid ObjectId'
+        })
+});
+
+export const validateUpdateItemStatus = Joi.object({
+    orderId: Joi.string()
+        .custom(objectIdValidator, 'ObjectId validation')
+        .required()
+        .messages({
+            'string.base': 'Item ID must be a string',
+            'string.empty': 'Item ID cannot be empty',
+            'any.required': 'Item ID is required',
+            'any.invalid': 'Item ID must be a valid ObjectId'
+        }),
+    itemId: Joi.string()
+        .custom(objectIdValidator, 'ObjectId validation')
+        .required()
+        .messages({
+            'string.base': 'Order ID must be a string',
+            'string.empty': 'Order ID cannot be empty',
+            'any.required': 'Order ID is required',
+            'any.invalid': 'Order ID must be a valid ObjectId'
         })
 });
 

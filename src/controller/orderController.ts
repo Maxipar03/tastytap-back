@@ -1,10 +1,12 @@
 import { orderService } from "../services/orderService.js";
-import { BadRequestError, NotFoundError } from "../utils/customError.js";
+import { BadRequestError, NotFoundError, CustomError, OrderReadyError } from "../utils/customError.js";
 import { Request, Response, NextFunction } from "express";
 import OrderService from "../services/orderService.js";
 import { CreateOrderDto } from "../DTO/orderDto.js";
 import { Types } from "mongoose";
 import { httpResponse } from "../utils/http-response.js";
+import { tableServices } from "../services/tableService.js";
+import { TableDao } from "../types/table.js";
 
 class OrderController {
 
@@ -20,10 +22,39 @@ class OrderController {
 
             if (!mesaData) throw new NotFoundError("Datos de mesa no encontrados");
 
+            // Verificar estado de la mesa antes de crear orden
+            const tables = await tableServices.getByRestaurat(mesaData.restaurant);
+            const currentTable = tables.find(table => table._id.toString() === mesaData.tableId.toString());
+            
+            if (currentTable && currentTable.state === "available") {
+                res.clearCookie("access_token", {
+                    httpOnly: true,
+                    secure: process.env.NODE_ENV === "production",
+                    sameSite: "strict"
+                });
+                throw new BadRequestError("No se puede crear una orden en una mesa disponible");
+            }
+
             // Si hay orderId del token, agregar items a orden existente
             if (orderId) {
-                const updatedOrder = await this.service.addItemsToOrder(orderId, body.items);
-                return httpResponse.Ok(res, updatedOrder);
+                try {
+                    const updatedOrder = await this.service.addItemsToOrder(orderId, body.items);
+                    return httpResponse.Ok(res, updatedOrder);
+                } catch (error: any) {
+                    if (error instanceof OrderReadyError) {
+                        res.clearCookie("order_token", {
+                            httpOnly: true,
+                            secure: process.env.NODE_ENV === "production",
+                            sameSite: "strict"
+                        });
+                        res.clearCookie("access_token", {
+                            httpOnly: true,
+                            secure: process.env.NODE_ENV === "production",
+                            sameSite: "strict"
+                        });
+                    }
+                    throw error;
+                }
             }
 
             // Caso normal: crear nueva orden
@@ -70,7 +101,6 @@ class OrderController {
             if (!restaurant) throw new NotFoundError("Datos de restaurante no encontrados")
             if (!id) throw new NotFoundError("Datos de orden no encontrados");
             const response = await this.service.updateStatusOrder(id, req.body, restaurant);
-
             return httpResponse.Ok(res, response);
         } catch (error) {
             next(error);
@@ -87,6 +117,8 @@ class OrderController {
 
             // 🆕 Extraer filtros de la query
             const { status, fromDate, toDate, waiter, search } = req.query;
+            
+            console.log('Query params recibidos:', { status, fromDate, toDate, waiter, search });
 
             // Validar parámetro waiter
             const validWaiterValues = ["me", "others", "all"];
@@ -109,9 +141,9 @@ class OrderController {
                 currentWaiterId: waiterId,
             };
 
-            if (status && status !== 'undefined') filters.status = status as string;
-            if (fromDate && fromDate !== 'undefined') filters.fromDate = fromDate as string;
-            if (toDate && toDate !== 'undefined') filters.toDate = toDate as string;
+            if (status && status !== 'undefined' && status !== '') filters.status = status as string;
+            if (fromDate && fromDate !== 'undefined' && fromDate !== '' && fromDate !== 'null') filters.fromDate = fromDate as string;
+            if (toDate && toDate !== 'undefined' && toDate !== '' && toDate !== 'null') filters.toDate = toDate as string;
             if (search && search !== 'undefined' && search !== '') filters.search = search as string;
             if (waiterParam !== undefined && waiterParam !== 'all') filters.waiter = waiterParam;
 
@@ -153,8 +185,6 @@ class OrderController {
         }
     }
 
-
-
     updateStatusItems = async (req: Request, res: Response, next: NextFunction) => {
         try {
             const { orderId, itemId } = req.params
@@ -163,7 +193,8 @@ class OrderController {
             if (!validStatuses.includes(status)) throw new BadRequestError("Estado inválido")
             if (!orderId || !itemId) throw new NotFoundError("Datos de orden no encontrados")
 
-            const updatedOrder = await this.service.updateStatusItems(itemId, orderId, status)
+            // orderId del parámetro es realmente el itemId, itemId del parámetro es realmente el orderId
+            const updatedOrder = await this.service.updateStatusItems(orderId, itemId, status)
 
             return httpResponse.Ok(res, updatedOrder)
         } catch (error) {

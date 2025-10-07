@@ -25,6 +25,17 @@ class CategoryController {
         }
     }
 
+    update = async (req: Request, res: Response, next: NextFunction): Promise<any> => {
+        try {
+            const { id } = req.params;
+            if(!id) throw new BadRequestError("ID de la categoria no encontrado")
+            const response = await this.service.update(id, req.body);
+            return httpResponse.Ok(res, response)
+        } catch (error) {
+            next(error);
+        }
+    }
+
     delete = async (req: Request, res: Response, next: NextFunction): Promise<any> => {
         try {
             const { id } = req.params;
@@ -40,7 +51,7 @@ class CategoryController {
         try {
             if (!req.user?.restaurant) throw new UnauthorizedError("No se encontro la mesa")
             const id = req.user?.restaurant;
-            const response = await this.service.categoryByRestaurant(id);
+            const response = await this.service.getByRestaurant(id);
             return httpResponse.Ok(res, response)
         } catch (error) {
             next(error);

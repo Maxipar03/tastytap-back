@@ -4,3 +4,7 @@ export interface CreateCategoryDto {
     name: string;
     restaurant: Types.ObjectId; 
 }
+
+export interface UpdateCategoryDto {
+    name: string;
+}

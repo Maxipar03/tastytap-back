@@ -16,6 +16,11 @@ router.post("/logout", userController.logout);
 router.get("/me", verifyTokenUser, userController.getUser);
 
 router.get(
+    "/auth/google",
+    passportCall('google', { scope: ['profile', 'email'] })
+);
+
+router.get(
     "/oauth2/redirect/accounts.google.com",
     passportCall('google', { assignProperty: "user" }),
     userController.googleResponse

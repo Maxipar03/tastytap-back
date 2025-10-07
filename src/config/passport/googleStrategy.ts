@@ -12,7 +12,7 @@ if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
 const strategyConfig = {
     clientID: process.env.GOOGLE_CLIENT_ID,
     clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-    callbackURL: "/users/oauth2/redirect/accounts.google.com",
+    callbackURL: "/api/users/oauth2/redirect/accounts.google.com",
     scope: ["profile", "email"],
     state: true
 }
@@ -25,11 +25,14 @@ const registerOrLogin = async (accessToken: string, refreshToken: string, profil
         const user = await userService.getByEmail(email);
         if (user) return done(null, user);
 
+        const fullName = `${profile._json.given_name || ''} ${profile._json.family_name || ''}`.trim();
+        
         const newUser = await userService.register({
-            name: profile._json.given_name || "",
+            name: fullName || profile.displayName || "",
             email,
             password: null,
-            isGoogle: true
+            isGoogle: true,
+            profileImage: profile._json.picture || ""
         });
 
         return done(null, newUser);
