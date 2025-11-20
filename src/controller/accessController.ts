@@ -1,19 +1,24 @@
 import { Request, Response, NextFunction } from "express";
-import { UnauthorizedError, CustomError, NotFoundError } from "../utils/customError.js";
+import { accessService } from "../services/accessServices.js";
+import { UnauthorizedError, NotFoundError } from "../utils/customError.js";
 import { httpResponse } from "../utils/http-response.js";
-import { TableModel } from "../daos/mongodb/models/tableModel.js";
-import generateToken from "../utils/generateToken.js";
-import QRCode from "qrcode";
-import config from "../config/config.js";
-import jwt, { JwtPayload } from "jsonwebtoken";
-import { getIO } from "../config/socket.js";
-import { UserPayload, QRCodePayload } from "../types/express.js";
+import { RestaurantModel } from "../daos/mongodb/models/restaurantModel.js";
+import { JwtPayload } from "jsonwebtoken";
+import { UserPayload, QRTablePayload, QRToGoPayload } from "../types/express.js";
 import { Types } from "mongoose";
+import { setCookieAccess } from "../utils/cookies.js";
+import { AccessServices } from "../types/express.js";
 
 class AccessController {
 
+    private service: AccessServices;
+
+    constructor(services: AccessServices) {
+        this.service = services;
+    };
+
     // QR Generator (whit token)
-    generateQRAcces = async (req: Request, res: Response, next: NextFunction): Promise<any> => {
+    generateQRtable = async (req: Request, res: Response, next: NextFunction): Promise<any> => {
         try {
             const { tableId } = req.body;
             const user = req.user as UserPayload;
@@ -21,18 +26,49 @@ class AccessController {
             if (!user) throw new UnauthorizedError("User not authenticated!")
             if (!tableId) throw new NotFoundError("Table ID is required!")
 
-            const payload: QRCodePayload & JwtPayload = { tableId: new Types.ObjectId(tableId), waiterName: user.name, restaurant: user.restaurant, waiterId: user.id };
-            const token = generateToken(payload);
+            const restaurant = await RestaurantModel.findById(user.restaurant).select('name logo');
+            if (!restaurant) throw new NotFoundError("Restaurant not found!");
 
-            const link = `${config.FRONT_ENDPOINT}/access/${token}`;
+            const payload: QRTablePayload & JwtPayload = {
+                tableId: new Types.ObjectId(tableId),
+                waiterName: user.name,
+                restaurant: {
+                    id: restaurant._id,
+                    name: restaurant.name,
+                    ...(restaurant.logo && { logo: restaurant.logo })
+                },
+                waiterId: user.id,
+                toGo: false
+            };
 
-            let qrImage: string
+            const { qrImage, link } = await this.service.generateAccessQR(payload, 'table');
 
-            try {
-                qrImage = await QRCode.toDataURL(link);
-            } catch (error) {
-                throw new CustomError("Error al generar un QR", 500)
-            }
+            return httpResponse.Ok(res, { qrImage, link })
+        } catch (error) {
+            next(error)
+        }
+    };
+
+    // QR Generator (whit token)
+    generateQRtoGo = async (req: Request, res: Response, next: NextFunction): Promise<any> => {
+        try {
+            const user = req.user as UserPayload;
+
+            if (!user) throw new UnauthorizedError("User not authenticated!")
+
+            const restaurant = await RestaurantModel.findById(user.restaurant).select('name logo');
+            if (!restaurant) throw new NotFoundError("Restaurant not found!");
+
+            const payload: QRToGoPayload & JwtPayload = {
+                restaurant: {
+                    id: restaurant._id,
+                    name: restaurant.name,
+                    ...(restaurant.logo && { logo: restaurant.logo })
+                },
+                toGo: true
+            };
+
+            const { qrImage, link } = await this.service.generateAccessQR(payload, 'takeaway');
 
             return httpResponse.Ok(res, { qrImage, link })
         } catch (error) {
@@ -41,58 +77,47 @@ class AccessController {
     };
 
     // QR Validate
-    validateToken = async (req: Request, res: Response, next: NextFunction) => {
+    validateTokenTable = async (req: Request, res: Response, next: NextFunction) => {
         try {
             const token = req.params.token;
             if (!token) throw new NotFoundError("Token access is required");
 
-            if (!config.JWT_SECRET) throw new CustomError("JWT Secret not configured!", 500)
-            const secret = config.JWT_SECRET;
+            const payload = await this.service.verifyQrToken(token);
 
-            let payload: QRCodePayload;
+            setCookieAccess(res, token);
 
-            try {
-                payload = jwt.verify(token, secret) as unknown as QRCodePayload;
-            } catch (err) {
-                throw new UnauthorizedError("Token inválido o expirado");
-            }
+            await this.service.handleTableAccess(payload);
 
-            res.cookie('access_token', token,
-                {
-                    httpOnly: true,
-                    secure: true,
-                    sameSite: 'none',
-                }
-            );
+            return httpResponse.Ok(res, payload)
+        } catch (error) {
+            next(error)
+        }
+    };
 
-            const { restaurant, tableId, waiterId } = payload;
+    // QR Validate
+    validateTokenToGo = async (req: Request, res: Response, next: NextFunction) => {
+        try {
+            const token = req.params.token;
+            if (!token) throw new NotFoundError("Token access is required");
 
-            const io = getIO();
+            const payload = await this.service.verifyQrToken(token);
 
-            console.log(payload)
+            setCookieAccess(res, token)
+            const { restaurant } = payload;
 
-            const updatedTable = await TableModel.findByIdAndUpdate(
-                tableId,
-                {
-                    state: "occupied",
-                    waiterServing: waiterId
-                },
-                { new: true }
-            ).populate("waiterServing")
+            await this.service.handleToGoAccess(restaurant.id);
 
-            io.to(`restaurant-${restaurant}`).emit("mesa-actualizada", updatedTable);
-
-            return httpResponse.Ok(res, "Accesso Validado correctamente")
+            return httpResponse.Ok(res, payload)
         } catch (error) {
             next(error)
         }
     };
 
     validate = async (req: Request, res: Response, next: NextFunction) => {
-        if (!req.mesaData) return httpResponse.NoContent(res)
-        return httpResponse.Ok(res, { mesaData: req.mesaData });
+        if (!req.tableData && !req.toGoData) return httpResponse.NoContent(res)
+        return httpResponse.Ok(res, { tableData: req.tableData, toGoData: req.toGoData });
     }
 }
 
-export const accessController = new AccessController();
+export const accessController = new AccessController(accessService);
 

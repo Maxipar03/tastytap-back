@@ -8,9 +8,13 @@ import { validateJoi } from "../middleware/validateJoi.js";
 
 const router = Router();
 
-router.post("/generate-qr", verifyTokenUser , validateJoi(generateQRSchema, "body"), checkRole(["waiter", "admin"]), accessController.generateQRAcces);
+router.post("/table-qr", verifyTokenUser , validateJoi(generateQRSchema, "body"), checkRole(["waiter", "admin"]), accessController.generateQRtable);
 
-router.get("/qr/:token", validateJoi(validateTokenSchema, "params"), accessController.validateToken);
+router.post("/togo-qr", verifyTokenUser, checkRole(["waiter", "admin"]), accessController.generateQRtoGo )
+
+router.get("/table/qr/:token", validateJoi(validateTokenSchema, "params"), accessController.validateTokenTable);
+
+router.get("/togo/qr/:token", validateJoi(validateTokenSchema, "params"), accessController.validateTokenToGo);
 
 router.get("/validate", verifyTokenAccess, accessController.validate);
 

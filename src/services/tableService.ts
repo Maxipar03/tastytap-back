@@ -1,59 +1,35 @@
 import { tableMongoDao } from "../daos/mongodb/tableDao.js";
-import { orderMongoDao } from "../daos/mongodb/orderDao.js";
 import { getIO } from "../config/socket.js";
-
-import { OrderDao } from "../types/order.js";
-import { OrderDB } from "../types/order.js";
 import { TableDao, TableDB } from "../types/table.js";
 import { Types } from "mongoose";
-
-interface TableWithOrders extends TableDB {
-    orders: OrderDB[];
-}
+import cache from "../utils/cache.js";
 
 class TableServices {
 
     private dao: TableDao;
-    private orderDao: OrderDao;
 
-    constructor(dao: TableDao, orderDao: OrderDao) {
+    constructor(dao: TableDao) {
         this.dao = dao;
-        this.orderDao = orderDao;
-    }
-
-    getTablesWithOrders = async (restaurant: string | Types.ObjectId): Promise<TableWithOrders[]> => {
-        try {
-            const tables = await tableMongoDao.getByRestaurant(restaurant)
-
-            const result = await Promise.all(
-                tables.map(async (table) => {
-                    const orders = await this.orderDao.getByTableId(table._id.toString());
-                    return {
-                        ...table,
-                        orders,
-                    } as TableWithOrders
-                })
-            )
-
-            return result
-        } catch (error) {
-            throw error;
-        }
     }
 
     getByRestaurat = async (restaurant: string | Types.ObjectId): Promise<TableDB[]> => {
-        try {
-            return await this.dao.getByRestaurant(restaurant);
-        } catch (error) {
-            throw error;
-        }
-    }
+        const cacheKey = `tables:${restaurant}`;
+        const cached = await cache.get<TableDB[]>(cacheKey);
+        if (cached) return cached;
+
+        const tables = await this.dao.getByRestaurant(restaurant);
+        await cache.set(cacheKey, tables, 300); // 5 minutos
+        return tables;
+    };
+
+    getById = async (tableId: string | Types.ObjectId): Promise<TableDB | null> => this.dao.getById(tableId);
 
     update = async (tableId: string | Types.ObjectId, updateData: any, restaurant: string | Types.ObjectId): Promise<TableDB | null> => {
         try {
             const result = await this.dao.update(tableId, updateData);
             
             if (result && restaurant) {
+                await cache.del(`tables:${restaurant}`);
                 const io = getIO();
                 io.to(`restaurant-${restaurant}`).emit("mesa-actualizada", result);
             }
@@ -66,4 +42,4 @@ class TableServices {
 
 }
 
-export const tableServices = new TableServices(tableMongoDao, orderMongoDao);
+export const tableServices = new TableServices(tableMongoDao);

@@ -12,27 +12,10 @@ class TableController {
         this.service = services;
     }
 
-    getTablesWithOrders = async (req: Request, res: Response, next: NextFunction) => {
-        try {
-            const restaurant = req.user?.restaurant
-            const waiterId = req.user?.id;
-
-            if(!restaurant) throw new NotFoundError("No se encontro el restaurante")
-            if(!waiterId) throw new NotFoundError("No se encontro el mesero")
-
-            const data = await this.service.getTablesWithOrders(restaurant);
-            return httpResponse.Ok(res,{restaurant, waiterId, data});
-        } catch (err) {
-            console.error(err)
-            res.status(500).json({ error: "Error al obtener las mesas" })
-        }
-    }
-
     getByRestaurat = async (req: Request, res: Response, next: NextFunction) => {
         try {
 
             if(!req.user) throw new UnauthorizedError('No se encontro el usuario')
-
             if (!req.user.restaurant) throw new UnauthorizedError("No se encontro el ID del restaurante")
 
             const restaurant = req.user.restaurant;
@@ -48,8 +31,7 @@ class TableController {
     updateTable = async (req: Request, res: Response, next: NextFunction) => {
         try {
             const restaurant = req.user?.restaurant;
-            if(!restaurant) throw new NotFoundError("No se encontro el restaurante");
-            
+            if(!restaurant) throw new NotFoundError("No se encontro el restaurante");            
             const { tableId } = req.params;
             if(!tableId) throw new NotFoundError("No se encontro la mesa");
             

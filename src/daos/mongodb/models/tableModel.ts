@@ -14,6 +14,10 @@ const tableSchema = new Schema<TableDB>({
         enum: ["available", "occupied", "reserved"],
         default: "available"
     },
+    activeSession: {
+        type: Schema.Types.ObjectId,
+        ref: 'tableSession'
+    },
     isActive: {
         type: Boolean,
         default: true

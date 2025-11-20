@@ -3,13 +3,14 @@ import { Types } from "mongoose";
 
 export interface CreateOrderDto {
     items: OrderItem[];
-    tableId: Types.ObjectId;
+    tableId?: Types.ObjectId;
     restaurant: Types.ObjectId;
-    waiterId: Types.ObjectId;
+    waiterId?: Types.ObjectId;
     status: OrderStatus;
     clientId?: Types.ObjectId;
     userName?: string;
     pricing: OrderPricing;
     paymentMethod?: PaymentMethod;
     isPaid: boolean;
+    orderType: "dine-in" | "togo";
 }

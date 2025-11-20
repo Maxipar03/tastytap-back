@@ -13,6 +13,6 @@ router.get("/:id", verifyTokenUser, checkRole("admin"), validateJoi(validateObje
 
 router.post("/", verifyTokenUser, checkRole("admin"), validateJoi(validateCreateRestaurant, "body"), restaurantController.create);
 
-router.put("/:id", verifyTokenUser, checkRole("admin"),validateJoi(validateUpdateRestaurant, "body"), validateJoi(validateObjectId, "params"), restaurantController.update);
+router.put("/:id", verifyTokenUser, checkRole("admin"), validateJoi(validateUpdateRestaurant, "body"), validateJoi(validateObjectId, "params"), restaurantController.update);
 
 export default router

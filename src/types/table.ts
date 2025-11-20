@@ -7,6 +7,7 @@ export interface TableWithDetails {
     state: TableState;
     isActive: boolean;
     waiterServing?: Types.ObjectId | null;
+    activeSession?: Types.ObjectId | null;
     createdAt: Date;
     updatedAt: Date;
     orders: any[];
@@ -21,17 +22,19 @@ export interface TableDB extends Document {
     state: TableState;
     isActive: boolean;
     waiterServing?: Types.ObjectId | null;
+    activeSession?: Types.ObjectId | null;
     createdAt: Date;
     updatedAt: Date;
 }
 
 export interface TableDao {
     getByRestaurant: (restaurant: string | Types.ObjectId) => Promise<TableDB[]>;
+    getById: (tableId: string | Types.ObjectId) => Promise<TableDB | null>;
     update: (tableId: string | Types.ObjectId, updateData: any) => Promise<TableDB | null>;
 }
 
 export interface TableService {
-    getTablesWithOrders: (restaurant: string | Types.ObjectId) => Promise<any[]>;
     getByRestaurat: (restaurant: string | Types.ObjectId) => Promise<TableDB[]>;
+    getById: (tableId: string | Types.ObjectId) => Promise<TableDB | null>;
     update: (tableId: string | Types.ObjectId, data: Partial<TableDB>, restaurant: string | Types.ObjectId) => Promise<TableDB | null>;
 }

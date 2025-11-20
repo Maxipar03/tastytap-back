@@ -3,8 +3,9 @@ import { foodMongoDao } from "../daos/mongodb/foodDao.js";
 import { CategoryDB, CategoryDao } from "../types/category.js";
 import { CreateCategoryDto, UpdateCategoryDto } from "../DTO/categoryDto.js";
 import { Types } from "mongoose";
+import cache from "../utils/cache.js";
 
-export default class CategoryService { 
+export default class CategoryService {
 
     private dao: CategoryDao
 
@@ -13,39 +14,32 @@ export default class CategoryService {
     }
 
     create = async (body: CreateCategoryDto): Promise<CategoryDB> => {
-        try {
-            return await this.dao.create(body);
-        } catch (error) {
-            throw error;
-        }
-    }
+        const result = await this.dao.create(body);
+        await cache.del(`categories:${body.restaurant}`);
+        return result;
+    };
 
     update = async (id: string | Types.ObjectId, body: UpdateCategoryDto): Promise<CategoryDB | null> => {
-        try {
-            return await this.dao.update(id, body);
-        } catch (error) {
-            throw error;
-        }
-    }
-
-    delete = async (id: string | Types.ObjectId): Promise<CategoryDB | null> => {
-        try {
-            // Actualizar todos los productos que tienen esta categoría para que tengan category: null
-            await foodMongoDao.updateFoodsByCategoryToNull(id);
-            
-            // Eliminar la categoría
-            return await this.dao.delete(id);
-        } catch (error) {
-            throw error;
-        }
-    }
+        const result = await this.dao.update(id, body);
+        if (result) await cache.del(`categories:${result.restaurant}`);
+        return result;
+    };
 
     getByRestaurant = async (id: string | Types.ObjectId): Promise<any[]> => {
-        try {
-            return await this.dao.getByRestaurant(id);
-        } catch (error) {
-            throw error;
-        }
+        const cacheKey = `categories:${id}`;
+        const cached = await cache.get<any[]>(cacheKey);
+        if (cached) return cached;
+
+        const categories = await this.dao.getByRestaurant(id);
+        await cache.set(cacheKey, categories, 600); // 10 minutos
+        return categories;
+    };
+
+    delete = async (id: string | Types.ObjectId): Promise<CategoryDB | null> => {
+        await foodMongoDao.updateFoodsByCategoryToNull(id);
+        const result = await this.dao.delete(id);
+        if (result) await cache.del(`categories:${result.restaurant}`);
+        return result;
     }
 }
 

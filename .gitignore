@@ -10,9 +10,9 @@ yarn-error.log*
 .env.development.local
 .env.test.local
 .env.production.local
-MEJORAS_COMPLETAS.md
-implementacion_hibrida_mesa.txt
-DEPLOYMENT.md
+MEJORAS_SERVIDOR_WEB.md
+REDIS_IMPLEMENTATION.md
+TRANSACCIONES_IMPLEMENTADAS.md
 
 # Archivos de compilación
 dist/

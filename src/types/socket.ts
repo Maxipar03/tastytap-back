@@ -13,9 +13,14 @@ interface JoinTablePayload {
     tableId: string;
 }
 
+interface JoinOrderPayload {
+    orderId: string;
+}
+
 export interface ClientToServerEvents {
     'join-restaurant': (payload: JoinRestaurantPayload) => void;
     'join-waiter': (payload: JoinWaiterPayload) => void;
+    'join-order': (payload: JoinOrderPayload) => void;
 }
 
 export interface SocketData {

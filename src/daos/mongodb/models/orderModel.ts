@@ -1,4 +1,5 @@
 import { Schema, model } from "mongoose";
+import mongoosePaginate from "mongoose-paginate-v2";
 import { OrderDB, OrderItem, OrderItemOption, OrderItemOptionValue, OrderPricing } from "../../../types/order.js"
 
 const orderItemOptionValueSchema = new Schema < OrderItemOptionValue > ({
@@ -54,6 +55,10 @@ const orderItemSchema = new Schema < OrderItem > ({
         enum: ["pending", "preparing", "ready", "delivered", "cancelled"],
         default: "pending",
     },
+    deletionReason: {
+        type: String,
+        trim: true,
+    },
 });
 
 const orderPricingSchema = new Schema < OrderPricing > ({
@@ -70,7 +75,7 @@ const orderSchema = new Schema < OrderDB > ({
     tableId: {
         type: Schema.Types.ObjectId,
         ref: "table",
-        required: true,
+        required: false,
     },
     restaurant: {
         type: Schema.Types.ObjectId,
@@ -80,11 +85,22 @@ const orderSchema = new Schema < OrderDB > ({
     waiterId: {
         type: Schema.Types.ObjectId,
         ref: "user",
+        required: false,
+    },
+    orderType: {
+        type: String,
+        enum: ["dine-in", "togo"],
+        default: "dine-in",
     },
     status: {
         type: String,
-        enum: ["pending", "preparing", "ready", "delivered", "cancelled"],
+        enum: ["pending", "delivered", "cancelled", "cashed"],
         default: "pending",
+    },
+    activeSession: {
+        type: Schema.Types.ObjectId,
+        ref: "tableSession",
+        required: false,
     },
     clientId: {
         type: Schema.Types.ObjectId,
@@ -110,5 +126,7 @@ const orderSchema = new Schema < OrderDB > ({
 }, {
     timestamps: true,
 });
+
+orderSchema.plugin(mongoosePaginate);
 
 export const OrderModel = model < OrderDB > ("order", orderSchema);

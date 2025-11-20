@@ -1,11 +1,9 @@
 import { foodService } from "../services/foodService.js";
 import { FoodService } from "../types/food.js";
-import cloudinary from "../config/cloudinary.js";
 import { Request, Response, NextFunction } from "express";
-import { MenuFiltersDto } from "../DTO/menuFiltersDto.js";
+import { MenuFiltersDto, MenuFiltersMapper } from "../DTO/menuFiltersDto.js";
 import { httpResponse } from "../utils/http-response.js";
 import { BadRequestError, NotFoundError, UnauthorizedError } from "../utils/customError.js";
-import { deleteImageFromCloudinary } from "../utils/cloudinaryUtils.js";
 
 class FoodController {
 
@@ -15,42 +13,17 @@ class FoodController {
         this.service = services;
     }
 
-    private async uploadToCloudinary(file: Express.Multer.File): Promise<string> {
-        if (!file) throw new BadRequestError("No se selecciono una imagen para la comida")
-
+    getAllMenu = async (req: Request, res: Response, next: NextFunction): Promise<any> => {
         try {
-            const base64File = `data:${file.mimetype};base64,${file.buffer.toString('base64')}`;
-            const result = await cloudinary.uploader.upload(base64File, {
-                folder: "foods"
-            });
 
-            return result.secure_url;
-        } catch (error) {
-            console.error("Cloudinary upload error:", error);
-            throw new Error("Error subiendo imagen");
-        }
-    }
+            const restaurant = req.tableData?.restaurant.id || req.toGoData?.restaurant.id;
+            if (!restaurant) throw new BadRequestError("No se encontro el id del restaurante");
 
+            const filters: MenuFiltersDto = MenuFiltersMapper.mapFromQuery(req.query);
 
-    getAll = async (req: Request, res: Response, next: NextFunction): Promise<any> => {
-        try {
-            const restaurant = req.mesaData?.restaurant;
-            if (!restaurant) throw new BadRequestError("No se encontro el id del restaurante")
-
-            const { category, search, available, isVegetarian, isVegan, isGlutenFree } = req.query;
-
-            const filters: MenuFiltersDto = {};
-
-            if (category) filters.category = category as string;
-            if (search) filters.search = search as string;
-            if (available !== undefined) filters.available = available === 'true';
-            if (isVegetarian !== undefined) filters.isVegetarian = isVegetarian === 'true';
-            if (isVegan !== undefined) filters.isVegan = isVegan === 'true';
-            if (isGlutenFree !== undefined) filters.isGlutenFree = isGlutenFree === 'true';
-
-            const response = await this.service.getByRestaurantId(restaurant, filters);
-
+            const response = await this.service.getByRestaurant(restaurant, filters);
             return httpResponse.Ok(res, response);
+
         } catch (error) {
             next(error);
         }
@@ -58,11 +31,13 @@ class FoodController {
 
     getAllAdmin = async (req: Request, res: Response, next: NextFunction): Promise<any> => {
         try {
+
             const restaurant = req.user?.restaurant;
             if (!restaurant) throw new BadRequestError("No se encontro el id del restaurante");
-            const response = await this.service.getByRestaurantId(restaurant, {});
-            console.log(response)
+
+            const response = await this.service.getByRestaurant(restaurant, {});
             return httpResponse.Ok(res, response);
+
         } catch (error) {
             next(error);
         }
@@ -71,26 +46,24 @@ class FoodController {
     create = async (req: Request, res: Response, next: NextFunction): Promise<any> => {
         try {
 
-            console.log(req.body)
-
             if (!req.user || !req.user.restaurant) throw new UnauthorizedError("Datos de usuario o restaurante no encontrados");
-            if (!req.body || !req.body.ingredients || !req.body.options) throw new NotFoundError("Datos de comida no encontrados")
+            if (!req.body || !req.body.ingredients || !req.body.options) throw new NotFoundError("Datos de comida no encontrados");
 
-            const imageUrl = req.file ? await this.uploadToCloudinary(req.file) : "";
+            const parsedIngredients = JSON.parse(req.body.ingredients);
+            const parsedOptions = JSON.parse(req.body.options);
 
             const foodData = {
                 ...req.body,
                 restaurant: req.user.restaurant,
-                ingredients: JSON.parse(req.body.ingredients),
-                options: JSON.parse(req.body.options),
-                image: imageUrl
+                ingredients: parsedIngredients,
+                options: parsedOptions,
+                file: req.file
             };
 
             const response = await this.service.create(foodData);
-
             return httpResponse.Ok(res, response);
+
         } catch (error) {
-            console.log(error)
             next(error);
         }
     };
@@ -99,6 +72,7 @@ class FoodController {
         try {
             const { id } = req.params;
             if (!id) throw new NotFoundError("Datos de comida no encontrados");
+
             const response = await this.service.getById(id);
             return httpResponse.Ok(res, response);
         } catch (error) {
@@ -111,31 +85,18 @@ class FoodController {
             const { id } = req.params;
             if (!id) throw new NotFoundError("Datos de comida no encontrados");
             if (!req.user || !req.user.restaurant) throw new UnauthorizedError("Datos de usuario o restaurante no encontrados");
-            
-            let imageUrl: string | undefined;
-            let oldImageUrl: string | undefined;
 
-            if (req.file) {
-                const currentFood = await this.service.getById(id);
-                oldImageUrl = currentFood?.image;
-                imageUrl = await this.uploadToCloudinary(req.file);
-            }
+            const parsedIngredients = JSON.parse(req.body.ingredients);
+            const parsedOptions = JSON.parse(req.body.options);
 
             const updateData = {
                 ...req.body,
-                ingredients: JSON.parse(req.body.ingredients),
-                options: JSON.parse(req.body.options),
-                image: imageUrl
+                ingredients: parsedIngredients,
+                options: parsedOptions,
+                file: req.file
             };
 
-            if (imageUrl) updateData.image = imageUrl;
-
             const response = await this.service.update(id, req.user, updateData);
-            
-            if (oldImageUrl && imageUrl) {
-                await deleteImageFromCloudinary(oldImageUrl);
-            }
-            
             return httpResponse.Ok(res, response);
         } catch (error) {
             next(error);

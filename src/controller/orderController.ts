@@ -1,12 +1,14 @@
 import { orderService } from "../services/orderService.js";
-import { BadRequestError, NotFoundError, CustomError, OrderReadyError } from "../utils/customError.js";
+import { BadRequestError, NotFoundError, OrderReadyError } from "../utils/customError.js";
 import { Request, Response, NextFunction } from "express";
 import OrderService from "../services/orderService.js";
 import { CreateOrderDto } from "../DTO/orderDto.js";
-import { Types } from "mongoose";
+import { OrderFiltersMapper } from "../DTO/orderFiltersDto.js";
 import { httpResponse } from "../utils/http-response.js";
 import { tableServices } from "../services/tableService.js";
-import { TableDao } from "../types/table.js";
+import { prepareOrderData } from "../utils/ordersUtils.js";
+import { clearCookieAccess, clearCookieOrder, setCookieOrder } from "../utils/cookies.js";
+import logger from "../utils/logger.js";
 
 class OrderController {
 
@@ -18,69 +20,58 @@ class OrderController {
 
     create = async (req: Request, res: Response, next: NextFunction) => {
         try {
-            const { mesaData, user, body, orderId } = req;
+            const { tableData, user, body, orderId, toGoData } = req;
 
-            if (!mesaData) throw new NotFoundError("Datos de mesa no encontrados");
+            const logContext = {
+                userId: user?.id,
+                tableId: tableData?.tableId,
+                restaurantId: tableData?.restaurant?.id || toGoData?.restaurant,
+                isToGo: !!toGoData,
+                itemsCount: body.items?.length
+            };
 
-            // Verificar estado de la mesa antes de crear orden
-            const tables = await tableServices.getByRestaurat(mesaData.restaurant);
-            const currentTable = tables.find(table => table._id.toString() === mesaData.tableId.toString());
-            
-            if (currentTable && currentTable.state === "available") {
-                res.clearCookie("access_token", {
-                    httpOnly: true,
-                    secure: process.env.NODE_ENV === "production",
-                    sameSite: "strict"
-                });
-                throw new BadRequestError("No se puede crear una orden en una mesa disponible");
-            }
+            logger.info(logContext, "Iniciando creación de orden");
 
-            // Si hay orderId del token, agregar items a orden existente
-            if (orderId) {
-                try {
-                    const updatedOrder = await this.service.addItemsToOrder(orderId, body.items);
-                    return httpResponse.Ok(res, updatedOrder);
-                } catch (error: any) {
-                    if (error instanceof OrderReadyError) {
-                        res.clearCookie("order_token", {
-                            httpOnly: true,
-                            secure: process.env.NODE_ENV === "production",
-                            sameSite: "strict"
-                        });
-                        res.clearCookie("access_token", {
-                            httpOnly: true,
-                            secure: process.env.NODE_ENV === "production",
-                            sameSite: "strict"
-                        });
-                    }
-                    throw error;
+            let orderData: Partial<CreateOrderDto> = prepareOrderData({ body, tableData, user, toGoData });
+
+            // Verifica si la mesa de la orden esta disponible (Debe estar ocupada)
+            if (!toGoData && tableData) {
+                const tables = await tableServices.getByRestaurat(tableData.restaurant.id);
+                const currentTable = tables.find((t) => t._id.toString() === tableData.tableId.toString());
+                if (currentTable && currentTable.state === "available") {
+                    logger.warn({ ...logContext, tableState: currentTable.state }, "Intento de crear orden en mesa disponible");
+                    throw new BadRequestError("No se puede crear una orden en una mesa disponible");
                 }
             }
 
-            // Caso normal: crear nueva orden
-            const orderData: Partial<CreateOrderDto> = {
-                ...body,
-                tableId: mesaData.tableId,
-                waiterId: mesaData.waiterId,
-                restaurant: mesaData.restaurant,
-                userName: user ? user.name : body.guestName,
-                clientId: user ? new Types.ObjectId(user.id) : undefined,
-            };
+            // Crear la orden y responder con token
+            const result = await this.service.create(orderData as CreateOrderDto, orderId as string);
 
-            const { order, token } = await this.service.create(orderData as any);
+            logger.info({ ...logContext, orderId: result.order?._id, total: result.order.pricing?.total }, "Orden creada exitosamente");
 
-            res.cookie("order_token", token, {
-                httpOnly: true,
-                secure: process.env.NODE_ENV === "production",
-                sameSite: "strict",
-                maxAge: 1000 * 60 * 60,
-            });
-            return httpResponse.Created(res, order);
+            setCookieOrder(res, result.token)
+
+            return httpResponse.Created(res, result.order);
 
         } catch (error) {
+            const logContext = {
+                userId: req.user?.id,
+                tableId: req.tableData?.tableId,
+                restaurantId: req.tableData?.restaurant?.id || req.toGoData?.restaurant,
+                error: error
+            };
+
+            logger.error(logContext, "Error al crear orden");
+
+            if (error instanceof OrderReadyError) {
+                clearCookieOrder(res);
+                clearCookieAccess(res);
+            }
+
             next(error);
         }
-    };
+    }
+
 
     getByTokenUser = async (req: Request, res: Response, next: NextFunction) => {
         try {
@@ -97,110 +88,141 @@ class OrderController {
     updateStatusOrder = async (req: Request, res: Response, next: NextFunction) => {
         try {
             const { id } = req.params;
+            const { status } = req.body;
             const restaurant = req.user?.restaurant;
+            const waiterId = req.user?.id;
+
             if (!restaurant) throw new NotFoundError("Datos de restaurante no encontrados")
             if (!id) throw new NotFoundError("Datos de orden no encontrados");
+
+            logger.info({ orderId: id, newStatus: status, waiterId, restaurantId: restaurant }, "Actualizando estado de orden");
+
             const response = await this.service.updateStatusOrder(id, req.body, restaurant);
+
+            logger.info({ orderId: id, waiterId }, "Estado de orden actualizado exitosamente");
+
             return httpResponse.Ok(res, response);
         } catch (error) {
+            logger.error({ orderId: req.params.id, error: error }, "Error al actualizar estado de orden");
             next(error);
-        }
-    };
-
-    getByRestaurantId = async (req: Request, res: Response, next: NextFunction) => {
-        try {
-            const waiterId = req.user?.id;
-            const restaurant = req.user?.restaurant;
-
-            if (!restaurant) throw new NotFoundError("Datos de restaurante no encontrados");
-            if (!waiterId) throw new NotFoundError("Datos de mesero no encontrados");
-
-            // 🆕 Extraer filtros de la query
-            const { status, fromDate, toDate, waiter, search } = req.query;
-            
-            console.log('Query params recibidos:', { status, fromDate, toDate, waiter, search });
-
-            // Validar parámetro waiter
-            const validWaiterValues = ["me", "others", "all"];
-            const waiterFilter = validWaiterValues.includes(waiter as string)
-                ? (waiter as "me" | "others" | "all")
-                : "all";
-
-            // Construir filtro de waiter según query
-            let waiterParam: string | Types.ObjectId | undefined = undefined;
-            if (waiterFilter === "me") {
-                waiterParam = waiterId; // solo mis pedidos
-            } else if (waiterFilter === "others") {
-                waiterParam = "others"; // lógica para que el servicio filtre ≠ waiterId
-            } else {
-                waiterParam = "all"; // todos
-            }
-
-            // Construir filtros solo con valores definidos
-            const filters: any = {
-                currentWaiterId: waiterId,
-            };
-
-            if (status && status !== 'undefined' && status !== '') filters.status = status as string;
-            if (fromDate && fromDate !== 'undefined' && fromDate !== '' && fromDate !== 'null') filters.fromDate = fromDate as string;
-            if (toDate && toDate !== 'undefined' && toDate !== '' && toDate !== 'null') filters.toDate = toDate as string;
-            if (search && search !== 'undefined' && search !== '') filters.search = search as string;
-            if (waiterParam !== undefined && waiterParam !== 'all') filters.waiter = waiterParam;
-
-            console.log('Filtros aplicados:', filters)
-            
-            const response = await this.service.getByRestaurantId(restaurant, filters);
-
-            return httpResponse.Ok(res, { response, waiterId, restaurant, waiterFilter });
-        } catch (error) {
-            next(error);
-        }
-    };
-
-    getByUserId = async (req: Request, res: Response, next: NextFunction) => {
-        try {
-            const userId = req.user?.id;
-            if (!userId) throw new NotFoundError("Datos de usuario no encontrados");
-            const response = await this.service.getByUserId(userId);
-            return httpResponse.Ok(res, response);
-        } catch (error) {
-            next(error);
-        }
-    };
-
-    // callWaiter = async (req: Request, res: Response, next: NextFunction) => {
-    //     try {
-    //         const tableData = req.mesaData;
-
-    //         if (!tableData) throw new NotFoundError("Datos de mesa no encontrados");
-
-    //         const response = await this.service.callWaiter(
-    //             tableData.tableId,
-    //             tableData.waiterId,
-    //         );
-
-    //         return httpResponse.Ok(res, response);
-    //     } catch (error) {
-    //         next(error);
-    //     }
-    // }
-
-    updateStatusItems = async (req: Request, res: Response, next: NextFunction) => {
-        try {
-            const { orderId, itemId } = req.params
-            const { status } = req.body
-            const validStatuses = ["pending", "preparing", "ready", "delivered", "cancelled"]
-            if (!validStatuses.includes(status)) throw new BadRequestError("Estado inválido")
-            if (!orderId || !itemId) throw new NotFoundError("Datos de orden no encontrados")
-
-            // orderId del parámetro es realmente el itemId, itemId del parámetro es realmente el orderId
-            const updatedOrder = await this.service.updateStatusItems(orderId, itemId, status)
-
-            return httpResponse.Ok(res, updatedOrder)
-        } catch (error) {
-            next(error)
         }
     }
+
+
+getByRestaurantId = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const waiterId = req.user?.id;
+        const restaurant = req.user?.restaurant;
+
+        if (!restaurant) throw new NotFoundError("Datos de restaurante no encontrados");
+        if (!waiterId) throw new NotFoundError("Datos de mesero no encontrados");
+
+        const filters = OrderFiltersMapper.mapFromQuery(req.query, waiterId.toString());
+
+        const response = await this.service.getByRestaurantId(restaurant, filters);
+
+        return httpResponse.Ok(res, {
+            orders: response?.docs || [],
+            pagination: {
+                totalDocs: response?.totalDocs || 0,
+                limit: response?.limit || 10,
+                totalPages: response?.totalPages || 0,
+                page: response?.page || 1,
+                pagingCounter: response?.pagingCounter || 0,
+                hasPrevPage: response?.hasPrevPage || false,
+                hasNextPage: response?.hasNextPage || false,
+                prevPage: response?.prevPage || null,
+                nextPage: response?.nextPage || null
+            },
+            waiterId,
+            restaurant
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+getByUserId = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const userId = req.user?.id;
+        if (!userId) throw new NotFoundError("Datos de usuario no encontrados");
+        const response = await this.service.getByUserId(userId);
+        return httpResponse.Ok(res, response);
+    } catch (error) {
+        next(error);
+    }
+};
+
+// callWaiter = async (req: Request, res: Response, next: NextFunction) => {
+//     try {
+//         const tableData = req.tableData;
+
+//         if (!tableData) throw new NotFoundError("Datos de mesa no encontrados");
+
+//         const response = await this.service.callWaiter(
+//             tableData.tableId,
+//             tableData.waiterId,
+//         );
+
+//         return httpResponse.Ok(res, response);
+//     } catch (error) {
+//         next(error);
+//     }
+// }
+
+updateStatusItems = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const { orderId, itemId } = req.params
+        const { status, deletionReason } = req.body
+        if (!orderId || !itemId) throw new NotFoundError("Datos de orden no encontrados")
+
+        // Validar razón de eliminación si el status es cancelled
+        if (status === "cancelled" && (!deletionReason || deletionReason.trim() === "")) {
+            throw new BadRequestError("La razón de eliminación es obligatoria");
+        }
+
+        // orderId del parámetro es realmente el itemId, itemId del parámetro es realmente el orderId
+        const updatedOrder = await this.service.updateStatusItems(orderId, itemId, status, deletionReason)
+
+        return httpResponse.Ok(res, updatedOrder)
+    } catch (error) {
+        next(error)
+    }
+}
+
+deleteItem = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const { orderId, itemId } = req.params
+        const { deletionReason } = req.body
+
+        if (!orderId || !itemId) throw new NotFoundError("Datos de orden no encontrados")
+        if (!deletionReason || deletionReason.trim() === "") throw new BadRequestError("La razón de eliminación es obligatoria")
+
+        const updatedOrder = await this.service.updateStatusItems(orderId, itemId, "cancelled", deletionReason)
+        return httpResponse.Ok(res, updatedOrder)
+    } catch (error) {
+        next(error)
+    }
+}
+
+getOrdersByRestaurant = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const restaurant = req.user?.restaurant;
+        if (!restaurant) throw new NotFoundError("Datos de restaurante no encontrados");
+
+        const response = await this.service.getByRestaurantId(restaurant, {});
+
+        logger.debug({ restaurantId: restaurant, ordersCount: response?.docs?.length }, "Obteniendo órdenes por restaurante");
+        return httpResponse.Ok(res, response?.docs || []);
+    } catch (error) {
+        next(error);
+    }
+};
+
+validate = async (req: Request, res: Response, next: NextFunction) => {
+    if (!req.orderId) return httpResponse.NoContent(res)
+    return httpResponse.Ok(res, req.orderId);
+}
 }
 
 export const orderController = new OrderController(orderService)

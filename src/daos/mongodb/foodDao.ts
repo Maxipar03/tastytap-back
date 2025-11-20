@@ -2,57 +2,46 @@ import { FoodModel } from "./models/foodModel.js";
 import { FoodDB } from "../../types/food.js";
 import { CreateFoodDto } from "../../DTO/foodDto.js";
 import MongoDao from "./mongoDao.js";
-import { BadRequestError } from "../../utils/customError.js";
+import { MenuFiltersDto } from "../../DTO/menuFiltersDto.js";
 import { Model, Types } from "mongoose";
 
-interface IMenuFilters {
-    category?: string;
-    minPrice?: number;
-    maxPrice?: number;
-    itemName?: string;
-    available?: boolean;
-    search?: string;
-    isVegetarian?: boolean;
-    isVegan?: boolean;
-    isGlutenFree?: boolean;
-}
-
 class FoodMongoDao extends MongoDao<FoodDB, CreateFoodDto> {
+
     constructor(model: Model<FoodDB>) {
         super(model);
     }
 
-    async getByRestaurantId(restaurant: string | Types.ObjectId, filters: IMenuFilters = {}) {
+    private _buildMenuQuery(filters: MenuFiltersDto): any {
+        const menuMatch: any = {};
+
+        const escapeRegex = (str: string): string => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        
+        if (filters.search) {
+            const escapedSearch = escapeRegex(filters.search);
+            menuMatch.$or = [
+                { name: { $regex: escapedSearch, $options: 'i' } },
+                { description: { $regex: escapedSearch, $options: 'i' } }
+            ];
+        };
+
+        if (filters.category) menuMatch.category = filters.category;
+        
+        if (filters.available === true) menuMatch.stock = { $gt: 0 };
+    
+        if (filters.isVegetarian === true) menuMatch.isVegetarian = true;
+
+        if (filters.isVegan === true) menuMatch.isVegan = true;
+        
+        if (filters.isGlutenFree === true) menuMatch.isGlutenFree = true;
+
+        return menuMatch;
+    }
+
+
+    async getByRestaurant(restaurant: string | Types.ObjectId, filters: MenuFiltersDto = {}) {
         try {
-
-            if (!Types.ObjectId.isValid(restaurant)) throw new BadRequestError("ID inválido");
-
-            const menuMatch: any = {};
-
-            const escapeRegex = (str: string): string => {
-                return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-            };
-
-            if (filters.category) {
-                menuMatch.category = filters.category;
-            }
-            if (filters.search) {
-                menuMatch.name = { $regex: escapeRegex(filters.search), $options: 'i' };
-            }
-            if (typeof filters.available === 'boolean') {
-                menuMatch.stock = { $gt: 0 };  
-            }
-            if (typeof filters.isVegetarian === 'boolean') {
-                menuMatch.isVegetarian = filters.isVegetarian;
-            }
-            if (typeof filters.isVegan === 'boolean') {
-                menuMatch.isVegan = filters.isVegan;
-            }
-            if (typeof filters.isGlutenFree === 'boolean') {
-                menuMatch.isGlutenFree = filters.isGlutenFree;
-            }
-
-            return await FoodModel.find({ restaurant: restaurant, ...menuMatch }).lean();
+            const menuMatch = this._buildMenuQuery(filters);
+            return await this.model.find({ restaurant: restaurant, ...menuMatch }).lean();
         } catch (error) {
             console.error("Error fetching food by restaurant ID:", error);
             throw error;
@@ -61,7 +50,6 @@ class FoodMongoDao extends MongoDao<FoodDB, CreateFoodDto> {
 
     async updateFoodsByCategoryToNull(categoryId: string | Types.ObjectId) {
         try {
-            if (!Types.ObjectId.isValid(categoryId)) throw new BadRequestError("ID inválido");
             return await this.model.updateMany(
                 { category: categoryId },
                 { $set: { category: null } }
@@ -72,13 +60,13 @@ class FoodMongoDao extends MongoDao<FoodDB, CreateFoodDto> {
         }
     }
 
-    async decreaseStock(foodId: string | Types.ObjectId, quantity: number) {
+    async decreaseStock(foodId: string | Types.ObjectId, quantity: number, session?: any) {
         try {
-            if (!Types.ObjectId.isValid(foodId)) throw new BadRequestError("ID inválido");
+            const options = session ? { new: true, session } : { new: true };
             return await this.model.findByIdAndUpdate(
                 foodId,
                 { $inc: { stock: -quantity } },
-                { new: true }
+                options
             );
         } catch (error) {
             console.error("Error decreasing stock:", error);

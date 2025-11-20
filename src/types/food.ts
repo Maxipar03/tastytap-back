@@ -39,7 +39,7 @@ export interface FoodDao {
     getAll: () => Promise<FoodDB[]>;
     update: (id: string, body: Partial<FoodDB>) => Promise<FoodDB | null>;
     getById: (id: string) => Promise<FoodDB | null>;
-    getByRestaurantId: (restaurantId: string | Types.ObjectId, filter: MenuFiltersDto) => Promise<FoodDB[]>;
+    getByRestaurant: (restaurantId: string | Types.ObjectId, filter: MenuFiltersDto) => Promise<FoodDB[]>;
     updateFoodsByCategoryToNull: (categoryId: string | Types.ObjectId) => Promise<any>;
 }
 
@@ -49,5 +49,5 @@ export interface FoodService {
     getById(id: string): Promise<FoodDB | null>;
     update(id: string, userData: any, updateData: any): Promise<FoodDB | null>;
     delete(id: string, userData: any): Promise<FoodDB | null>;
-    getByRestaurantId(restaurantId: string | Types.ObjectId, filter: MenuFiltersDto): Promise<FoodDB[]>;
+    getByRestaurant(restaurantId: string | Types.ObjectId, filter: MenuFiltersDto): Promise<FoodDB[]>;
 }

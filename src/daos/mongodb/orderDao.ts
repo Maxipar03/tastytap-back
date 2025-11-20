@@ -4,18 +4,38 @@ import { OrderDB } from "../../types/order.js";
 import { CreateOrderDto } from "../../DTO/orderDto.js";
 import { BadRequestError } from "../../utils/customError.js";
 import { OrderFilters } from "../../types/order.js";
-import { Model } from "mongoose";
-import { Types } from "mongoose";
+import { Model, Types } from "mongoose";
+import * as Sentry from "@sentry/node";
 
 class OrderMongoDao extends MongoDao<OrderDB, CreateOrderDto> {
     constructor(model: Model<OrderDB>) {
         super(model);
     }
 
-    updateStatusItems = async (orderId: string | Types.ObjectId, itemId: string | Types.ObjectId, newStatus: string): Promise<OrderDB | null> => {
+    updateStatusItems = async (orderId: string | Types.ObjectId, itemId: string | Types.ObjectId, newStatus: string, deletionReason?: string): Promise<OrderDB | null> => {
         try {
 
             if (!Types.ObjectId.isValid(orderId) || !Types.ObjectId.isValid(itemId)) throw new BadRequestError("ID inválido");
+
+            Sentry.addBreadcrumb({
+                category: 'order',
+                message: 'Order item status update',
+                data: {
+                    orderId: orderId.toString(),
+                    itemId: itemId.toString(),
+                    newStatus,
+                    deletionReason
+                }
+            });
+
+            const updateFields: any = {
+                "items.$.status": newStatus,
+                updatedAt: new Date(),
+            };
+
+            if (newStatus === "cancelled" && deletionReason) {
+                updateFields["items.$.deletionReason"] = deletionReason;
+            }
 
             const updatedOrder = await this.model.findOneAndUpdate(
                 {
@@ -23,18 +43,13 @@ class OrderMongoDao extends MongoDao<OrderDB, CreateOrderDto> {
                     "items._id": itemId,
                 },
                 {
-                    $set: {
-                        "items.$.status": newStatus,
-                        updatedAt: new Date(),
-                    },
+                    $set: updateFields,
                 },
                 { new: true },
             )
 
-            console.log('Orden actualizada:', !!updatedOrder);
             return updatedOrder as OrderDB | null
         } catch (error) {
-            console.error("Error fetching orders by restaurant:", error);
             throw error
         }
     }
@@ -42,6 +57,11 @@ class OrderMongoDao extends MongoDao<OrderDB, CreateOrderDto> {
     getById = async (id: string | Types.ObjectId): Promise<OrderDB | null> => {
         try {
             if (!Types.ObjectId.isValid(id)) throw new BadRequestError("ID inválido");
+            Sentry.addBreadcrumb({
+                category: 'database',
+                message: 'Executing getById query with populate',
+                data: { collection: this.model.collection.name, id: id.toString() }
+            });
             return (await this.model.findById(id)
                 .populate("clientId", "name profileImage")
                 .populate("waiterId", "name profileImage")
@@ -52,10 +72,19 @@ class OrderMongoDao extends MongoDao<OrderDB, CreateOrderDto> {
         }
     };
 
-    getByRestaurantId = async (restaurant: string | Types.ObjectId, filters: OrderFilters): Promise<OrderDB[]> => {
+    getByRestaurantId = async (restaurant: string | Types.ObjectId, filters: OrderFilters & { page?: number; limit?: number }): Promise<any> => {
         try {
 
             if (!Types.ObjectId.isValid(restaurant)) throw new BadRequestError("ID inválido");
+
+            Sentry.addBreadcrumb({
+                category: 'database',
+                message: 'Orders query by restaurant (paginated)',
+                data: {
+                    restaurantId: restaurant.toString(),
+                    filterKeys: Object.keys(filters)
+                }
+            });
 
             // Construir el objeto de consulta dinámicamente
             const query: any = { restaurant: restaurant };
@@ -78,7 +107,6 @@ class OrderMongoDao extends MongoDao<OrderDB, CreateOrderDto> {
 
             // Filtro por rango de fechas
             if (filters.fromDate || filters.toDate) {
-                console.log('Filtrando por rango de fechas', filters.fromDate, filters.toDate)
                 query.createdAt = {};
                 if (filters.fromDate) {
                     query.createdAt.$gte = new Date(filters.fromDate);
@@ -92,33 +120,36 @@ class OrderMongoDao extends MongoDao<OrderDB, CreateOrderDto> {
 
             // Filtro de búsqueda por texto
             if (filters.search) {
-                const searchRegex = new RegExp(filters.search, 'i');
                 const searchConditions = [];
-                
+
                 if (Types.ObjectId.isValid(filters.search)) {
                     searchConditions.push({ _id: new Types.ObjectId(filters.search) });
+                } else {
+                    const searchRegex = new RegExp(filters.search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+                    searchConditions.push({ userName: searchRegex });
+                    searchConditions.push({ "items.foodName": searchRegex });
                 }
-                searchConditions.push({ userName: searchRegex });
-                searchConditions.push({ "items.foodName": searchRegex });
-                
-                // Combinar todos los filtros existentes con la búsqueda
-                const baseQuery = { ...query };
-                query.$and = [
-                    baseQuery,
-                    { $or: searchConditions }
-                ];
+
+                query.$or = searchConditions;
             }
 
-            // Ejecutar la consulta con los filtros
-            const results = await this.model.find(query)
-                .populate("waiterId", "name")
-                .populate("tableId", "tableNumber")
-                .sort({ createdAt: -1 })
-                .lean();
-            
-            return results as OrderDB[];
+            // Configurar opciones de paginación
+            const options: any = {
+                page: filters.page || 1,
+                limit: filters.limit || 5,
+                populate: [
+                    { path: "waiterId", select: "name" },
+                    { path: "tableId", select: "tableNumber" }
+                ],
+                sort: { createdAt: -1 },
+                lean: true
+            };
+
+            // Ejecutar la consulta paginada con los filtros
+            const results = await (this.model as any).paginate(query, options);
+
+            return results;
         } catch (error) {
-            console.error("Error fetching orders by restaurant:", error);
             throw error
         }
     };
@@ -126,41 +157,40 @@ class OrderMongoDao extends MongoDao<OrderDB, CreateOrderDto> {
     getByUserId = async (userId: string | Types.ObjectId): Promise<OrderDB[]> => {
         try {
             if (!Types.ObjectId.isValid(userId)) throw new BadRequestError("ID inválido");
+            Sentry.addBreadcrumb({
+                category: 'database',
+                message: 'Executing getById query with populate',
+                data: { collection: this.model.collection.name, userId: userId.toString() }
+            });
             return (await this.model.find({ clientId: userId }).lean()) as OrderDB[];
         } catch (error) {
-            console.error("Error fetching orders by restaurant:", error);
             throw error
         }
     };
 
-    getByTableId = async (tableId: string | Types.ObjectId): Promise<OrderDB[]> => {
-        try {
-            if (!Types.ObjectId.isValid(tableId)) throw new BadRequestError("ID inválido");
-            const orders = await this.model.find({
-                tableId,
-                status: "pending"
-            })
-            .populate("clientId", "name profileImage")
-            .populate("waiterId", "name profileImage");
-            return orders as OrderDB[];
-        } catch (error) {
-            console.error("Error fetching orders by table:", error);
-            throw error
-        }
-    };
-
-    addItemsToOrder = async (orderId: string | Types.ObjectId, items: any[]): Promise<OrderDB | null> => {
+    addItemsToOrder = async (orderId: string | Types.ObjectId, items: any[], session?: any): Promise<OrderDB | null> => {
         try {
             if (!Types.ObjectId.isValid(orderId)) throw new BadRequestError("ID inválido");
-            
+
+            Sentry.addBreadcrumb({
+                category: 'order',
+                message: 'Adding items to order and recalculating pricing',
+                data: {
+                    orderId: orderId.toString(),
+                    itemsCount: items.length
+                }
+            });
+
+            const options = session ? { new: true, session } : { new: true };
+
             // Primero añadir los items
             const orderWithNewItems = await this.model.findByIdAndUpdate(
                 orderId,
-                { 
+                {
                     $push: { items: { $each: items } },
                     updatedAt: new Date()
                 },
-                { new: true }
+                options
             );
 
             if (!orderWithNewItems) return null;
@@ -176,18 +206,20 @@ class OrderMongoDao extends MongoDao<OrderDB, CreateOrderDto> {
             // Actualizar el pricing completo
             const updatedOrder = await this.model.findByIdAndUpdate(
                 orderId,
-                { 
+                {
                     'pricing.subtotal': subtotal,
                     'pricing.tax': tax,
                     'pricing.total': total,
                     updatedAt: new Date()
                 },
-                { new: true }
-            ).populate([
-                { path: "waiterId", select: "name email role" },
-                { path: "tableId", select: "tableNumber status" }
-            ]);
-            
+                {
+                    ...options, populate: [
+                        { path: "waiterId", select: "name email role" },
+                        { path: "tableId", select: "tableNumber status" }
+                    ]
+                }
+            );
+
             return updatedOrder as OrderDB | null;
         } catch (error) {
             throw error;

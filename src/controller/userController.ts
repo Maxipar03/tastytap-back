@@ -1,11 +1,11 @@
 import { userService } from "../services/userService.js";
-import generateToken from "../utils/generateToken.js";
-import { UserService } from "../types/user.js";
-import { UserPayload } from "../types/express.js";
+import { UserService } from "../types/user.js";;
 import { Request, Response, NextFunction } from "express";
 import { BadRequestError } from "../utils/customError.js";
-import { JwtPayload } from "jsonwebtoken";
+import { handleAuthSuccess } from "../utils/userUtils.js";
 import { httpResponse } from "../utils/http-response.js";
+import { clearCookieUser } from "../utils/cookies.js";
+import logger from "../utils/logger.js";
 
 class UserController {
 
@@ -17,30 +17,12 @@ class UserController {
 
     googleResponse = async (req: Request, res: Response, next: NextFunction) => {
         try {
-
-            if (!req.user) throw new BadRequestError("No se encontro el usuario")
-
-            const userPayload: UserPayload & JwtPayload = {
-                id: req.user._id,
-                name: req.user.name,
-                email: req.user.email,
-                role: req.user.role,
-                restaurant: req.user.restaurant,
-                ...(req.user.profileImage && { profileImage: req.user.profileImage })
-            };
-
-            const token = generateToken(userPayload);
-
-            res.cookie('user_info', token,{
-                httpOnly: true,
-                secure: process.env.NODE_ENV === 'production',    
-                sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-            });
-
-            const tokenTable = req.cookies.access_token;
-            const redirectUrl = tokenTable ? 'http://localhost:3000/menu' : 'http://localhost:3000/';
-            
-            return res.redirect(redirectUrl);
+            if (!req.user) {
+                logger.warn({ ip: req.ip, userAgent: req.get('User-Agent') }, "Intento de autenticacion Google sin usuario");
+                throw new BadRequestError("No se encontro el usuario");
+            }
+            logger.info({ userId: req.user.id, email: req.user.email }, "Autenticacion Google exitosa");
+            return handleAuthSuccess(res, req.user, true);
         } catch (error) {
             next(error);
         }
@@ -48,24 +30,22 @@ class UserController {
 
     register = async (req: Request, res: Response, next: NextFunction) => {
         try {
-            const response = await this.service.register(req.body);
-            const tokenTable = req.cookies.access_token
-
-            if (tokenTable) return httpResponse.Created(res, { response, redirect: "/menu" })
-            return httpResponse.Created(res, { response, redirect: "/" })
+            const { email } = req.body;
+            logger.info({ email, ip: req.ip }, "Intento de registro de usuario");
+            const newUser = await this.service.register(req.body);
+            logger.info({ userId: newUser.id, email: newUser.email }, "Usuario registrado exitosamente");
+            return handleAuthSuccess(res, newUser, false);
         } catch (error) {
+            logger.warn({ email: req.body.email, error: error }, "Error en registro de usuario");
             next(error);
         }
     }
 
     logout = async (req: Request, res: Response, next: NextFunction) => {
         try {
-            res.clearCookie('user_info',{
-                httpOnly: true,
-                secure: true,    
-                sameSite: 'none',
-            });
-
+            const userId = req.user?.id;
+            clearCookieUser(res);
+            logger.info({ userId }, "Usuario cerro sesion");
             return httpResponse.Ok(res, "Sesion cerrada correctamente");
         } catch (error) {
             next(error);
@@ -74,31 +54,13 @@ class UserController {
 
     login = async (req: Request, res: Response, next: NextFunction) => {
         try {
-            const { email, password } = req.body;
-            const user = await this.service.login(email, password);
-
-            const userPayload: UserPayload & JwtPayload = {
-                id: user._id,
-                name: user.name,
-                email: user.email,
-                role: user.role,
-                restaurant: user.restaurant!,
-                ...(user.profileImage && { profileImage: user.profileImage })
-            };
-
-            const token = generateToken(userPayload);
-
-            res.cookie('user_info', token, {
-                httpOnly: true,
-                secure: true,    
-                sameSite: 'none',
-            });
-
-            const tokenTable = req.cookies.access_token
-
-            if (tokenTable) return httpResponse.Ok(res, { userPayload, redirect: "/menu" })
-            return httpResponse.Ok(res, { userPayload, redirect: "/" })
+            const { email } = req.body;
+            logger.info({ email, ip: req.ip }, "Intento de inicio de sesion");
+            const user = await this.service.login(email, req.body.password);
+            logger.info({ userId: user.id, email: user.email }, "Inicio de sesion exitoso");
+            return handleAuthSuccess(res, user);
         } catch (error) {
+            logger.warn({ email: req.body.email, ip: req.ip, error: error }, "Error en inicio de sesion");
             next(error);
         }
     }

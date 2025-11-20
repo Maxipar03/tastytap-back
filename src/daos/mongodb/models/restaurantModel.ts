@@ -46,6 +46,14 @@ const restaurantSchema = new Schema<RestaurantDB>({
         type: Number,
         default: 0
     },
+    logo: {
+        type: String,
+        trim: true
+    },
+    stripeAccountId: {
+        type: String,
+        trim: true
+    },
 }, {
     timestamps: true
 })

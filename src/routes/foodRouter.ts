@@ -13,7 +13,7 @@ const upload = multer({ storage: storage });
 
 router.post("/", verifyTokenUser, validateJoi(validateCreateFood, "body"), checkRole("admin"), upload.single('image'), foodController.create);
 
-router.get("/", verifyTokenAccess, validateJoi(validateMenuFilters, "query"),  foodController.getAll);
+router.get("/", verifyTokenAccess, validateJoi(validateMenuFilters, "query"),  foodController.getAllMenu);
 
 router.get("/admin", verifyTokenUser, checkRole(["waiter", "admin"]), foodController.getAllAdmin)
 

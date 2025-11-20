@@ -1,9 +1,9 @@
 import { restaurnatService } from "../services/restaurantService.js";
-import { TableModel } from "../daos/mongodb/models/tableModel.js";
 import RestaurantService from "../services/restaurantService.js";
 import { NextFunction, Request, Response } from "express";
 import { httpResponse } from "../utils/http-response.js";
 import { NotFoundError } from "../utils/customError.js";
+import logger from "../utils/logger.js";
 
 class RestaurantController {
 
@@ -24,29 +24,15 @@ class RestaurantController {
 
     create = async (req: Request, res: Response, next: NextFunction): Promise<any> => {
         try {
-
-            const { numberTables, ...restaurantData } = req.body
-
-            const response = await this.service.create({
-                ...restaurantData,
-                numberTables
-            });
-
-            // Crea la cantidad de mesas necesarias
-
-            const tables = [];
-
-            for (let i = 1; i <= numberTables; i++) {
-                tables.push({
-                    restaurant: response._id,
-                    tableNumber: i,
-                });
-            }
-
-            await TableModel.insertMany(tables);
-
-            return httpResponse.Created(res,response)
+            const { name, address } = req.body;
+            logger.info({ name, address, userId: req.user?.id }, "Creando nuevo restaurante");
+            
+            const response = await this.service.create(req.body);
+            
+            logger.info({ restaurantId: response._id, name: response?.restaurant.name }, "Restaurante creado exitosamente");
+            return httpResponse.Created(res, response);
         } catch (error) {
+            logger.error({ name: req.body.name, error: error }, "Error al crear restaurante");
             next(error);
         }
     };
@@ -66,9 +52,15 @@ class RestaurantController {
         try {
             const { id } = req.params;
             if (!id) throw new NotFoundError("Datos de restaurante no encontrados")
+            
+            logger.info({ restaurantId: id, userId: req.user?.id }, "Actualizando restaurante");
+            
             const response = await this.service.update(id, req.body);
+            
+            logger.info({ restaurantId: id, name: response?.name }, "Restaurante actualizado exitosamente");
             return httpResponse.Ok(res, response)
         } catch (error) {
+            logger.error({ restaurantId: req.params.id, error: error }, "Error al actualizar restaurante");
             next(error);
         }
     };
@@ -77,9 +69,15 @@ class RestaurantController {
         try {
             const { id } = req.params;
             if (!id) throw new NotFoundError("Datos de restaurante no encontrados")
+            
+            logger.warn({ restaurantId: id, userId: req.user?.id }, "Eliminando restaurante");
+            
             const response = await this.service.delete(id);
+            
+            logger.warn({ restaurantId: id }, "Restaurante eliminado exitosamente");
             return httpResponse.Ok(res, response)
         } catch (error) {
+            logger.error({ restaurantId: req.params.id, error: error }, "Error al eliminar restaurante");
             next(error);
         }
     };

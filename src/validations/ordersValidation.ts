@@ -34,6 +34,7 @@ export const createOrderSchema = Joi.object({
     items: Joi.array().items(itemSchema).min(1).required(),
     pricing: pricingSchema.required(),
     status: Joi.string().valid('pending', 'confirmed', 'preparing', 'ready', 'delivered', 'cancelled').default('pending'),
+    orderType: Joi.string().valid('dine-in', 'togo').default('dine-in'),
 }).unknown(true);
 
 export const validateItemAndTableOrder = Joi.object({
@@ -87,5 +88,20 @@ export const validateIdOrder = Joi.object({
             'string.empty': 'Table ID cannot be empty',
             'any.required': 'Table ID is required',
             'any.invalid': 'Table ID must be a valid ObjectId'
+        })
+})
+
+export const validateDeleteItem = Joi.object({
+    deletionReason: Joi.string()
+        .trim()
+        .min(3)
+        .max(200)
+        .required()
+        .messages({
+            'string.base': 'La razón de eliminación debe ser texto',
+            'string.empty': 'La razón de eliminación es obligatoria',
+            'string.min': 'La razón debe tener al menos 3 caracteres',
+            'string.max': 'La razón no puede exceder 200 caracteres',
+            'any.required': 'La razón de eliminación es obligatoria'
         })
 })

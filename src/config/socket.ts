@@ -58,6 +58,11 @@ export const initSocketIO = (httpServer: HttpServer) => {
       console.log(`Mozo ${waiterId} unido a su sala personal`);
     });
 
+    // Nuevo: Unirse a notificaciones de una orden específica
+    socket.on("join-order", ({ orderId }) => {
+      socket.join(`order-${orderId}`);
+    });
+
     socket.on("disconnect", () => {
       console.log("Cliente desconectado:", socket.id);
     });

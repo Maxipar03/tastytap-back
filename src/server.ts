@@ -1,22 +1,41 @@
+import { initSentry } from "./config/sentry.js";
 import express, { Express, json, urlencoded, Request, Response, NextFunction } from "express";
 import { initSocketIO } from "./config/socket.js";
 import path from "path";
 import { errorHandler } from "./middleware/errorHandler.js";
 import config from "./config/config.js";
 import { initMongoDB } from "./config/db.js";
+import { connectRedis } from "./config/redis.js";
 import apiRouter from "./routes/index.js";
 import passport from "passport";
 import session from "express-session";
 import cookieParser from "cookie-parser";
-import morgan from "morgan";
+import { httpLogger } from "./middleware/httpLogger.js";
 import cors from "cors";
+import helmet from "helmet";
 import dotenv from "dotenv";
-
-// Importa las configuraciones de Passport aquí
+import * as Sentry from "@sentry/node";
+import logger from "./utils/logger.js";
+import { setupProcessLogging } from "./utils/processLogger.js";
+import { rateLimitMiddleware } from "./middleware/rateLimiter.js";
+import { compressionConfig } from "./config/compression.js";
+import { mongoSanitizeMiddleware } from "./middleware/mongoSanitize.js";
+import { sentryContextMiddleware } from "./middleware/sentryContext.js";
+import { setupAllAlerts } from "./utils/alertsConfig.js";
 import "./config/passport/googleStrategy.js";
+import { } from "rate-limiter-flexible";
+import { appendFile } from "fs/promises";
+
+initSentry();
 
 // Carga las variables de entorno
 dotenv.config();
+
+// Configurar logging de procesos
+setupProcessLogging();
+
+// Configurar alertas de monitoreo
+setupAllAlerts();
 
 // Definición de __dirname para CommonJS
 const __dirname = path.dirname(__filename);
@@ -24,25 +43,38 @@ const __dirname = path.dirname(__filename);
 // Crea la instancia de la aplicación Express y tipala
 const app: Express = express();
 
-app.use((req, res, next) => {
-    res.setHeader("Content-Security-Policy",
-        "default-src 'self'; " +
-        "script-src 'self' https://accounts.google.com https://apis.google.com; " +
-        "connect-src 'self' http://localhost:8080 https://accounts.google.com https://oauth2.googleapis.com; " +
-        "img-src 'self' data: https://*.googleusercontent.com; " +
-        "frame-src 'self' https://accounts.google.com;"
-    );
-    next();
-});
+// Configuración de Helmet para seguridad
+app.use(helmet({
+    contentSecurityPolicy: {
+        directives: {
+            defaultSrc: ["'self'"],
+            scriptSrc: ["'self'", "https://accounts.google.com", "https://apis.google.com"],
+            connectSrc: ["'self'", "http://localhost:8080", "https://accounts.google.com", "https://oauth2.googleapis.com"],
+            imgSrc: ["'self'", "data:", "https://*.googleusercontent.com"],
+            frameSrc: ["'self'", "https://accounts.google.com"]
+        }
+    },
+    crossOriginEmbedderPolicy: false // Permite embeds de Google OAuth
+}));
 
+// Webhook de Stripe ANTES del middleware json() - CRÍTICO para verificación de firma
+appendFile
 
 // Middlewares
 app
+    .use('/api/checkout/webhook', express.raw({
+        type: 'application/json',
+        limit: '1mb'
+    }))
+    .use(compressionConfig) // Compresión gzip optimizada
+    .use(rateLimitMiddleware) // Rate limiting global
     .use(json())
     .use(urlencoded({ extended: true }))
-    .use(morgan("dev"))
-    .use(cookieParser())
-    .use('/public', express.static(path.join(__dirname, 'public')))
+    .use(mongoSanitizeMiddleware) // Sanitización MongoDB
+    .use(sentryContextMiddleware) // Contexto de Sentry
+    .use(httpLogger) // Loger HTTP
+    .use(cookieParser()) // Cookies
+    .use('/public', express.static(path.join(__dirname, 'public'))) // Ruta publica
     .use(
         cors({
             credentials: true,
@@ -68,27 +100,23 @@ app
             allowedHeaders: ['Content-Type', 'Authorization'],
             exposedHeaders: ['Set-Cookie']
         })
-    );
+    )
+    .use(session({
+        secret: process.env.SESSION_SECRET || 'your-secret-key-here',
+        resave: false,
+        saveUninitialized: false,
+        cookie: {
+            secure: process.env.NODE_ENV === 'production',
+            maxAge: 24 * 60 * 60 * 1000 // 24 horas
+        }
+    }))
+    .use(passport.initialize())
+    .use(passport.session())
+    .use("/api", apiRouter);
 
-// Configuración de sesiones
-app.use(session({
-    secret: process.env.SESSION_SECRET || 'your-secret-key-here',
-    resave: false,
-    saveUninitialized: false,
-    cookie: {
-        secure: process.env.NODE_ENV === 'production',
-        maxAge: 24 * 60 * 60 * 1000 // 24 horas
-    }
-}));
+Sentry.setupExpressErrorHandler(app);
 
-// Inicializa Passport
-app.use(passport.initialize());
-app.use(passport.session());
-
-// Rutas
-app.use("/api", apiRouter);
-
-// Middleware de manejo de errores
+// Middleware de manejo de errores personalizado
 app.use(errorHandler);
 
 // Configuración del puerto
@@ -96,12 +124,20 @@ const port: number = Number(config.PORT) || 8080;
 
 // Inicializa la conexión a la base de datos
 initMongoDB()
-    .then(() => console.log("Conectado a la base de datos"))
-    .catch((error: Error) => console.log(error));
+    .then(() => logger.info("Conectado a la base de datos MongoDB"))
+    .catch((error: Error) => {
+        logger.error({ Error: error.message, Stack: error.stack }, "Error al conectar a la base de datos");
+        process.exit(1);
+    });
+
+// Inicializa la conexión a Redis
+connectRedis()
+    .then(() => logger.info("Conectado a Redis"))
+    .catch((error: Error) => logger.error({ Error: error.message }, "Error al conectar a Redis"));
 
 // Inicia el servidor HTTP
 const httpServer = app.listen(port, '0.0.0.0', () => {
-    console.log(`Server is running on port ${port}`);
+    logger.info({ Port: port, Environment: process.env.NODE_ENV || 'development' }, "Servidor HTTP iniciado");
 });
 
 // Inicia Socket.IO

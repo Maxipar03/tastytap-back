@@ -1,8 +1,9 @@
 import jwt from "jsonwebtoken"
 import { Request, Response, NextFunction } from "express"
-import { QRCodePayload, UserPayload } from "../types/express.js";
+import { QRTablePayload, QRToGoPayload, UserPayload } from "../types/express.js";
 import { UnauthorizedError } from "../utils/customError.js";
 import config from "../config/config.js";
+import { clearCookieAccess, clearCookieOrder, clearCookieUser } from "../utils/cookies.js";
 
 // Verify token access 
 export const verifyTokenAccess = (req: Request, res: Response, next: NextFunction) => {
@@ -13,21 +14,31 @@ export const verifyTokenAccess = (req: Request, res: Response, next: NextFunctio
 
     jwt.verify(token, config.JWT_SECRET, (err: any, decoded: any) => {
         if (err) {
-            res.clearCookie('access_token',{
-                httpOnly: true,
-                secure: true,    
-                sameSite: 'none',
-            });
+            clearCookieAccess(res)
 
             return next(new UnauthorizedError("El token es invalido o esta expirado"));
         }
-        const mesaData = decoded as QRCodePayload;
-        req.mesaData = {
-            waiterName: mesaData.waiterName,
-            restaurant: mesaData.restaurant,
-            tableId: mesaData.tableId,
-            waiterId: mesaData.waiterId
-        };
+        
+        // Detectar si es tableData o toGoData basado en las propiedades del token
+        if (decoded.tableId && decoded.waiterId) {
+            // Es tableData
+            const tableData = decoded as QRTablePayload;
+            req.tableData = {
+                waiterName: tableData.waiterName,
+                restaurant: tableData.restaurant,
+                tableId: tableData.tableId,
+                waiterId: tableData.waiterId,
+                toGo: false
+            };
+        } else {
+            // Es toGoData
+            const toGoData = decoded as QRToGoPayload;
+            req.toGoData = {
+                restaurant: toGoData.restaurant,
+                toGo: true
+            };
+        }
+        
         next();
     })
 }
@@ -44,26 +55,18 @@ const decodeUserToken = (token: string): UserPayload | null => {
 const createUserTokenMiddleware = (isOptional: boolean = false) => {
     return (req: Request, res: Response, next: NextFunction) => {
         
-        const token = req.cookies.user_info;
+        const token = req.cookies.user_token;
         
         if (!token) {
-            if (isOptional) {
-                return next();
-            }
+            if (isOptional) return next();
             throw new UnauthorizedError("No estás autorizado.");
         }
         
         const userData = decodeUserToken(token);
 
         if (!userData) {
-            res.clearCookie("user_info",{
-                httpOnly: true,
-                secure: true,    
-                sameSite: 'none',
-            });
-            if (!isOptional) {
-                return next(new UnauthorizedError("Token inválido o expirado"));
-            }
+            clearCookieUser(res);
+            if (!isOptional) return next(new UnauthorizedError("Token inválido o expirado"));
             return next();
         }
 
@@ -88,19 +91,13 @@ export const verifyTokenOrder = (req: Request, res: Response, next: NextFunction
 
     jwt.verify(token, config.JWT_SECRET, (err: any, decoded: any) => {
         if (err) {
-            res.clearCookie('order_token',{
-                httpOnly: true,
-                secure: true,    
-                sameSite: 'none',
-            });
+            clearCookieOrder(res);
             return next(new UnauthorizedError("El token es invalido o esta expirado"));
         }
 
         const { orderId } = decoded as { orderId: string };
 
-        if (!orderId) {
-            return next(new UnauthorizedError("Token inválido"));
-        }
+        if (!orderId) return next(new UnauthorizedError("Token inválido"));
 
         req.orderId = orderId;
         next();
@@ -120,11 +117,7 @@ const createOrderTokenMiddleware = (isOptional: boolean = false) => {
         
         jwt.verify(token, config.JWT_SECRET, (err: any, decoded: any) => {
             if (err) {
-                res.clearCookie('order_token', {
-                    httpOnly: true,
-                    secure: true,
-                    sameSite: 'none',
-                });
+                clearCookieOrder(res);
                 if (!isOptional) {
                     return next(new UnauthorizedError("El token es invalido o esta expirado"));
                 }

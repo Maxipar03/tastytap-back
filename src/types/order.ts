@@ -1,8 +1,9 @@
 // src/types/order.ts
 import { Document, Types } from "mongoose";
+import mongoosePaginate from "mongoose-paginate-v2";
 import { CreateOrderDto } from "../DTO/orderDto.js";
 
-export type ItemStatus = "pending" | "preparing" | "ready" | "delivered" | "cancelled";
+export type ItemStatus = "pending" | "preparing" | "ready" | "delivered" | "cancelled" | "cashed";
 
 export type OrderStatus = ItemStatus;
 
@@ -15,6 +16,8 @@ export interface OrderFilters {
     waiter?: string | Types.ObjectId;
     currentWaiterId?: string | Types.ObjectId;
     search?: string;
+    page?: number;
+    limit?: number;
 }
 
 export interface OrderItemOptionValue {
@@ -28,6 +31,7 @@ export interface OrderItemOption {
 }
 
 export interface OrderItem {
+    _id: any;
     foodId: Types.ObjectId;
     foodName: string;
     quantity: number;
@@ -35,6 +39,7 @@ export interface OrderItem {
     options: OrderItemOption[];
     notes?: string;
     status: ItemStatus;
+    deletionReason?: string;
 }
 
 export interface OrderPricing {
@@ -46,7 +51,8 @@ export interface OrderPricing {
 export interface OrderDB extends Document {
     _id: Types.ObjectId;
     items: OrderItem[];
-    tableId: Types.ObjectId;
+    tableId?: Types.ObjectId;
+    activeSession?: Types.ObjectId;
     restaurant: Types.ObjectId;
     waiterId?: Types.ObjectId;
     status: OrderStatus;
@@ -55,19 +61,19 @@ export interface OrderDB extends Document {
     pricing: OrderPricing;
     paymentMethod: PaymentMethod;
     isPaid: boolean;
+    orderType: "dine-in" | "togo";
     createdAt: Date;
     updatedAt: Date;
 }
 
 export interface OrderDao {
-    create: (body: CreateOrderDto) => Promise<OrderDB>;
-    update: (id: string | Types.ObjectId, body: Partial<OrderDB>) => Promise<OrderDB | null>;
-    updateStatusItems: (itemId: string | Types.ObjectId, orderId: string | Types.ObjectId, status: OrderStatus) => Promise<OrderDB | null>;
-    addItemsToOrder: (orderId: string | Types.ObjectId, items: OrderItem[]) => Promise<OrderDB | null>;
-    getByRestaurantId: (restaurant: string | Types.ObjectId, filters: OrderFilters) => Promise<OrderDB[]>;
+    create: (body: CreateOrderDto, session?: any) => Promise<OrderDB>;
+    update: (id: string | Types.ObjectId, body: Partial<OrderDB>, session?: any) => Promise<OrderDB | null>;
+    updateStatusItems: (itemId: string | Types.ObjectId, orderId: string | Types.ObjectId, status: OrderStatus, deletionReason?: string) => Promise<OrderDB | null>;
+    addItemsToOrder: (orderId: string | Types.ObjectId, items: OrderItem[], session?: any) => Promise<OrderDB | null>;
+    getByRestaurantId: (restaurant: string | Types.ObjectId, filters: OrderFilters) => Promise<any>;
     getById: (id: string | Types.ObjectId) => Promise<OrderDB | null>;
     getByUserId: (userId: string | Types.ObjectId) => Promise<OrderDB[]>;
-    getByTableId: (tableId: string | Types.ObjectId) => Promise<OrderDB[]>;
 }
 
 export interface CreateOrderResponse {
@@ -78,11 +84,10 @@ export interface CreateOrderResponse {
 export interface OrderService {
     create(orderData: CreateOrderDto): Promise<CreateOrderResponse>;
     updateStatusOrder(id: string | Types.ObjectId, orderData: Partial<OrderDB>, restaurant: string | Types.ObjectId): Promise<OrderDB | null>;
-    updateStatusItems(itemId: string | Types.ObjectId, orderId: string | Types.ObjectId, status: OrderStatus): Promise<OrderDB | null>;
+    updateStatusItems(itemId: string | Types.ObjectId, orderId: string | Types.ObjectId, status: OrderStatus, deletionReason?: string): Promise<OrderDB | null>;
     addItemsToOrder(orderId: string | Types.ObjectId, items: OrderItem[]): Promise<OrderDB | null>;
-    getByRestaurantId(restaurant: string | Types.ObjectId, filters: OrderFilters): Promise<OrderDB[]>;
+    getByRestaurantId(restaurant: string | Types.ObjectId, filters: OrderFilters): Promise<any>;
     getById: (id: string | Types.ObjectId) => Promise<OrderDB | null>;
     getByUserId(userId: string | Types.ObjectId): Promise<OrderDB[]>;
-    getByTableId(tableId: string | Types.ObjectId): Promise<OrderDB[]>;
 }
 

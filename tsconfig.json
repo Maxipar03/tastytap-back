@@ -24,9 +24,6 @@
     "resolveJsonModule": true,
     "isolatedModules": true
   },
-  "ts-node": {
-    "esm": true
-  },
   "include": ["src/**/*", "__test__/**/*"],
   "exclude": ["node_modules", "dist"]
 }

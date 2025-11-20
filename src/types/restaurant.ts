@@ -11,6 +11,8 @@ export interface RestaurantDB extends Document {
     rating: number;
     menu: Types.ObjectId[];
     numberTables: number;
+    logo?: string;
+    stripeAccountId?: string;
     createdAt: Date;
     updatedAt: Date;
 }
@@ -23,9 +25,15 @@ export interface RestaurantDao {
     delete: (id: string) => Promise<RestaurantDB | null>;
 }
 
+export interface CreateRestaurantResponse {
+    _id: any;
+    restaurant: RestaurantDB;
+    onboardingUrl: string;
+}
+
 export interface RestaurantService {
     getAll: () => Promise<RestaurantDB[]>;
-    create: (data: CreateRestaurantDto) => Promise<RestaurantDB>;
+    create: (data: CreateRestaurantDto) => Promise<CreateRestaurantResponse>;
     getById: (id: string) => Promise<RestaurantDB | null>;
     update: (id: string, data: Partial<RestaurantDB>) => Promise<RestaurantDB | null>;
     delete: (id: string) => Promise<RestaurantDB | null>;

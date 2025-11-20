@@ -20,11 +20,21 @@ class TableMongoDao extends MongoDao <TableDB, CreateTableDto>{
             throw error;
         }
     }
+
+    getById = async (id: string | Types.ObjectId): Promise<TableDB | null> => {
+        try {
+            if (!Types.ObjectId.isValid(id)) throw new BadRequestError("ID inválido");
+            return await this.model.findById(id).lean<TableDB>();
+        } catch (error) {
+            console.error(`Error in getById for tableId ${id}:`, error);
+            throw error;
+        }
+    }
     
     update = async (id: string | Types.ObjectId, updateData: Partial<TableDB>): Promise<TableDB | null> => {
         try {
             if (!Types.ObjectId.isValid(id)) throw new BadRequestError("ID inválido");
-            const updatedTable = await this.model.findByIdAndUpdate(id, updateData, { new: true }).lean<TableDB>();
+            const updatedTable = await this.model.findByIdAndUpdate(id, updateData, { new: true }).populate("waiterServing").lean<TableDB>();
             return updatedTable 
         } catch (error) {
             console.error(`Error in update for tableId ${id}:`, error);

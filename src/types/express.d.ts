@@ -11,17 +11,43 @@ export interface UserPayload {
     profileImage?: string;
 }
 
-export interface QRCodePayload {
+export interface RestaurantInfo {
+    id: Types.ObjectId;
+    name: string;
+    logo?: string;
+}
+
+export interface QRTablePayload {
     tableId: Types.ObjectId;
     waiterName: string;
-    restaurant: Types.ObjectId;
+    restaurant: RestaurantInfo;
     waiterId: Types.ObjectId;
+    toGo: false;
+}
+
+export interface QRToGoPayload {
+    restaurant: RestaurantInfo;
+    toGo: true;
+}
+
+export interface QRResponse {
+    qrImage: string;
+    link: string;
+    token: string;
+}
+
+export interface AccessServices {
+    generateAccessQR: (payload: QRToGoPayload | QRTablePayload , type: 'table' | 'takeaway', expiresIn: Expiry = "3h") => Promise<QRResponse>;
+    handleTableAccess: (payload: QRTablePayload) => Promise<QRTablePayload>;
+    handleToGoAccess: (restaurantId: string | Types.ObjectId) => Promise<void>;
+    verifyQrToken: (token: string) => Promise<QRTablePayload>;
 }
 
 declare global {
     namespace Express {
         interface Request {
-            mesaData?: QRCodePayload;
+            tableData?: QRTablePayload;
+            toGoData?: QRToGoPayload;
             user?: UserPayload;
             orderId?: string;
             file?: Multer.File;
