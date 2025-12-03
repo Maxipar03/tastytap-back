@@ -1,5 +1,5 @@
 import { Router, Request, Response, NextFunction } from "express";
-import { tableController } from "../controller/tableController.js";
+import { tableController } from "../controller/TableController.js";
 import { validateUpdateTable,validateTableObjectId } from "../validations/tablesValidation.js";
 import { validateJoi } from "../middleware/validateJoi.js";
 import { checkRole } from "../middleware/checkRole.js";
