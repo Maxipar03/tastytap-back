@@ -45,8 +45,8 @@ export default class MongoDao<T, C> {
                 message: 'Executing create operation',
                 data: { collection: this.model.collection.name }
             });
-            const options = session ? [body, { session }] : [body];
-            return (await this.model.create(...options)) as T;
+            const result = session ? await this.model.create([body], { session }) : await this.model.create(body);
+            return (Array.isArray(result) ? result[0] : result) as T;
         } catch (error) {
             throw error
         }

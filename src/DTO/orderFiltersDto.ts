@@ -6,6 +6,7 @@ export interface OrderFiltersDto {
     search?: string;
     page?: number;
     limit?: number;
+    includeDetails?: boolean;
 }
 
 export class OrderFiltersMapper {
@@ -42,6 +43,11 @@ export class OrderFiltersMapper {
         }
         if (query.limit && !isNaN(Number(query.limit))) {
             filters.limit = Number(query.limit);
+        }
+        
+        // Incluir detalles completos (populate)
+        if (query.includeDetails !== undefined) {
+            filters.includeDetails = query.includeDetails === 'true';
         }
 
         return {

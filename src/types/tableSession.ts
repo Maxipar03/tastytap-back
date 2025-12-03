@@ -15,10 +15,10 @@ export interface TableSessionDB extends Document {
 
 export interface TableSessionDao {
     getByTableId: (tableId: string | Types.ObjectId) => Promise<TableSessionDB | null>;
-    getActiveByTableId: (tableId: string | Types.ObjectId) => Promise<TableSessionDB | null>;
+    getActiveByTableId: (tableId: string | Types.ObjectId, session?: any) => Promise<TableSessionDB | null>;
     getActiveSessionsByRestaurant: (restaurant: string | Types.ObjectId) => Promise<TableSessionDB[]>;
-    createSession: (restaurant: string | Types.ObjectId, table: string | Types.ObjectId) => Promise<TableSessionDB>;
+    createSession: (restaurant: string | Types.ObjectId, table: string | Types.ObjectId, session?: any) => Promise<TableSessionDB>;
     closeSession: (id: string | Types.ObjectId) => Promise<TableSessionDB | null>;
-    addOrderToSession: (sessionId: string | Types.ObjectId, orderId: string | Types.ObjectId) => Promise<TableSessionDB | null>;
+    addOrderToSession: (sessionId: string | Types.ObjectId, orderId: string | Types.ObjectId, session?: any) => Promise<TableSessionDB | null>;
     updateTotalAmount: (sessionId: string | Types.ObjectId) => Promise<TableSessionDB | null>;
 }

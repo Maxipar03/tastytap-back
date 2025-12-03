@@ -20,7 +20,6 @@ export const setupDatabaseAlerts = () => {
   });
 
   mongoose.connection.on('disconnected', () => {
-    // 💡 Reemplazo de captureMessage con Sentry.captureMessage
     Sentry.captureMessage('MongoDB reconnected', 'info');
   });
 

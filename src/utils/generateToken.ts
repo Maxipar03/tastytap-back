@@ -1,5 +1,5 @@
 import jwt, { SignOptions } from "jsonwebtoken";
-import { NotFoundError } from "./customError";
+import config from "../config/config";
 
 type Expiry =
     | number
@@ -9,12 +9,9 @@ const generateToken = (
     payload: object | string | Buffer,
     expiresIn: Expiry = "1h"
 ): string => {
-    const secret = process.env.JWT_SECRET;
-    if (!secret) throw new NotFoundError("JWT_SECRET no está configurado");
 
     const options: SignOptions = { expiresIn };
-
-    return jwt.sign(payload, secret, options);
+    return jwt.sign(payload, config.JWT_SECRET, options);
 };
 
 export default generateToken;

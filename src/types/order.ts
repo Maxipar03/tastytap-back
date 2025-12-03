@@ -3,7 +3,7 @@ import { Document, Types } from "mongoose";
 import mongoosePaginate from "mongoose-paginate-v2";
 import { CreateOrderDto } from "../DTO/orderDto.js";
 
-export type ItemStatus = "pending" | "preparing" | "ready" | "delivered" | "cancelled" | "cashed";
+export type ItemStatus = "awaiting_payment" | "pending" | "preparing" | "ready" | "delivered" | "cancelled" | "cashed";
 
 export type OrderStatus = ItemStatus;
 
@@ -18,6 +18,7 @@ export interface OrderFilters {
     search?: string;
     page?: number;
     limit?: number;
+    includeDetails?: boolean;
 }
 
 export interface OrderItemOptionValue {
@@ -62,6 +63,8 @@ export interface OrderDB extends Document {
     paymentMethod: PaymentMethod;
     isPaid: boolean;
     orderType: "dine-in" | "togo";
+    cancellationReason?: string;
+    cancelledBy?: Types.ObjectId;
     createdAt: Date;
     updatedAt: Date;
 }
@@ -72,7 +75,7 @@ export interface OrderDao {
     updateStatusItems: (itemId: string | Types.ObjectId, orderId: string | Types.ObjectId, status: OrderStatus, deletionReason?: string) => Promise<OrderDB | null>;
     addItemsToOrder: (orderId: string | Types.ObjectId, items: OrderItem[], session?: any) => Promise<OrderDB | null>;
     getByRestaurantId: (restaurant: string | Types.ObjectId, filters: OrderFilters) => Promise<any>;
-    getById: (id: string | Types.ObjectId) => Promise<OrderDB | null>;
+    getById: (id: string | Types.ObjectId, populate?: boolean) => Promise<OrderDB | null>;
     getByUserId: (userId: string | Types.ObjectId) => Promise<OrderDB[]>;
 }
 
@@ -87,7 +90,7 @@ export interface OrderService {
     updateStatusItems(itemId: string | Types.ObjectId, orderId: string | Types.ObjectId, status: OrderStatus, deletionReason?: string): Promise<OrderDB | null>;
     addItemsToOrder(orderId: string | Types.ObjectId, items: OrderItem[]): Promise<OrderDB | null>;
     getByRestaurantId(restaurant: string | Types.ObjectId, filters: OrderFilters): Promise<any>;
-    getById: (id: string | Types.ObjectId) => Promise<OrderDB | null>;
+    getById: (id: string | Types.ObjectId, populate?: boolean) => Promise<OrderDB | null>;
     getByUserId(userId: string | Types.ObjectId): Promise<OrderDB[]>;
 }
 

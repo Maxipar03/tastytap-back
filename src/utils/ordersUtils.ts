@@ -16,8 +16,10 @@ export const prepareOrderData = ({
     
     if (toGoData) {
         return {
-            ...body,
-            orderType: "togo",
+            items: body.items,
+            pricing: body.pricing,
+            status: body.status,
+            orderType: "togo" as const,
             restaurant: toGoData.restaurant.id,
             userName: user ? user.name : body.guestName,
             clientId: user ? new Types.ObjectId(user.id) : undefined,
@@ -27,8 +29,10 @@ export const prepareOrderData = ({
     if (!tableData) throw new NotFoundError("Datos de mesa no encontrados");
 
     return {
-        ...body,
-        orderType: "dine-in",
+        items: body.items,
+        pricing: body.pricing,
+        status: body.status,
+        orderType: "dine-in" as const,
         tableId: tableData.tableId,
         waiterId: tableData.waiterId,
         restaurant: tableData.restaurant.id,

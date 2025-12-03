@@ -2,7 +2,7 @@ import { Router, Request, Response, NextFunction } from "express";
 import { orderController } from "../controller/orderController.js";
 import { verifyTokenAccess, verifyTokenOrder, verifyTokenUser, verifyTokenOrderOptional } from "../middleware/checkToken.js";
 import { validateJoi } from "../middleware/validateJoi.js";
-import { validateItemAndTableOrder, validateIdOrder, createOrderSchema, validateUpdateItemStatus, validateDeleteItem } from "../validations/ordersValidation.js";
+import { validateItemAndTableOrder, validateIdOrder, createOrderSchema, validateUpdateItemStatus, validateDeleteItem, validateUpdateOrderStatus } from "../validations/ordersValidation.js";
 import { checkRole } from "../middleware/checkRole.js";
 import { optionalVerifyTokenUser } from "../middleware/checkToken.js";
 import { apiRateLimitMiddleware } from "../middleware/rateLimiter.js";
@@ -28,6 +28,8 @@ router.get("/restaurant-paginate", verifyTokenUser, checkRole(["waiter", "admin"
 
 router.get("/restaurant", verifyTokenUser, checkRole(["waiter", "admin", "chef"]), orderController.getOrdersByRestaurant);
 
-router.put("/:id", orderPerformanceMiddleware, apiRateLimitMiddleware, verifyTokenUser, checkRole(["waiter", "admin", "chef"]), validateJoi(validateIdOrder,"params"), orderController.updateStatusOrder);
+router.put("/:id", orderPerformanceMiddleware, apiRateLimitMiddleware, verifyTokenUser, checkRole(["waiter", "admin", "chef"]), validateJoi(validateIdOrder,"params"), validateJoi(validateUpdateOrderStatus, "body"), orderController.updateStatusOrder);
+
+router.get("/:id/details", verifyTokenUser, checkRole(["waiter", "admin", "chef"]), orderController.getOrderDetails);
 
 export default router;

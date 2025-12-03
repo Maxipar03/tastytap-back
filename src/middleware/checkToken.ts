@@ -9,13 +9,11 @@ import { clearCookieAccess, clearCookieOrder, clearCookieUser } from "../utils/c
 export const verifyTokenAccess = (req: Request, res: Response, next: NextFunction) => {
 
     const token = req.cookies.access_token
-
     if (!token) throw new UnauthorizedError('No estás autorizado.')
 
     jwt.verify(token, config.JWT_SECRET, (err: any, decoded: any) => {
         if (err) {
             clearCookieAccess(res)
-
             return next(new UnauthorizedError("El token es invalido o esta expirado"));
         }
         

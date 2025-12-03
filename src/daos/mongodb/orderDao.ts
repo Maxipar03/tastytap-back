@@ -12,6 +12,208 @@ class OrderMongoDao extends MongoDao<OrderDB, CreateOrderDto> {
         super(model);
     }
 
+    getTopSellingFoods = async (restaurantId: string | Types.ObjectId, dateFilter?: Date | null): Promise<any> => {
+        try {
+            if (!Types.ObjectId.isValid(restaurantId)) throw new BadRequestError("ID inválido");
+
+            Sentry.addBreadcrumb({
+                category: 'stats',
+                message: 'Calculating top selling foods aggregate',
+                data: { restaurantId: restaurantId.toString() }
+            });
+
+            const matchStage: any = {
+                restaurant: new Types.ObjectId(restaurantId.toString()),
+                isPaid: true
+            };
+            if (dateFilter) matchStage.createdAt = { $gte: dateFilter };
+
+            const topFoods = await OrderModel.aggregate([
+                { $match: matchStage },
+                { $unwind: "$items" }, 
+                {
+                    $match: {
+                        "items.status": { $ne: "cancelled" }
+                    }
+                },
+                {
+                    $group: {
+                        _id: "$items.foodId",
+                        foodName: { $first: "$items.foodName" }, 
+                        quantity: { $sum: "$items.quantity" }
+                    }
+                },
+                { $sort: { quantity: -1 } },
+                { $limit: 10 }
+            ]);
+
+            return topFoods;
+        } catch (error) {
+            Sentry.captureException(error);
+            throw error;
+        }
+    }
+
+    getTotalStats = async (restaurantId: string | Types.ObjectId, dateFilter?: Date | null): Promise<any> => {
+        try {
+            if (!Types.ObjectId.isValid(restaurantId)) throw new BadRequestError("ID inválido");
+
+            const matchStage: any = {
+                restaurant: new Types.ObjectId(restaurantId.toString()),
+                isPaid: true
+            };
+            if (dateFilter) matchStage.createdAt = { $gte: dateFilter };
+
+            const stats = await OrderModel.aggregate([
+                { $match: matchStage },
+                {
+                    $group: {
+                        _id: null,
+                        totalOrders: { $sum: 1 },
+                        totalRevenue: { $sum: "$pricing.total" }
+                    }
+                }
+            ]);
+
+            return stats[0] || { totalOrders: 0, totalRevenue: 0 };
+        } catch (error) {
+            Sentry.captureException(error);
+            throw error;
+        }
+    }
+
+    getCategoryDistribution = async (restaurantId: string | Types.ObjectId, dateFilter?: Date | null): Promise<any> => {
+        try {
+            if (!Types.ObjectId.isValid(restaurantId)) throw new BadRequestError("ID inválido");
+
+            const matchStage: any = {
+                restaurant: new Types.ObjectId(restaurantId.toString()),
+                isPaid: true
+            };
+            if (dateFilter) matchStage.createdAt = { $gte: dateFilter };
+
+            const distribution = await OrderModel.aggregate([
+                { $match: matchStage },
+                { $unwind: "$items" },
+                {
+                    $match: {
+                        "items.status": { $ne: "cancelled" }
+                    }
+                },
+                {
+                    $lookup: {
+                        from: "foods",
+                        localField: "items.foodId",
+                        foreignField: "_id",
+                        as: "foodData"
+                    }
+                },
+                { $unwind: { path: "$foodData", preserveNullAndEmptyArrays: true } },
+                {
+                    $lookup: {
+                        from: "categories",
+                        localField: "foodData.category",
+                        foreignField: "_id",
+                        as: "categoryData"
+                    }
+                },
+                { $unwind: { path: "$categoryData", preserveNullAndEmptyArrays: true } },
+                {
+                    $group: {
+                        _id: "$categoryData._id",
+                        categoryName: { $first: "$categoryData.name" },
+                        totalSales: { $sum: "$items.quantity" }
+                    }
+                },
+                { $sort: { totalSales: -1 } }
+            ]);
+
+            const totalSales = distribution.reduce((sum, cat) => sum + cat.totalSales, 0);
+
+            return distribution.map(cat => ({
+                ...cat,
+                percentage: totalSales > 0 ? Math.round((cat.totalSales / totalSales) * 100 * 100) / 100 : 0
+            }));
+        } catch (error) {
+            Sentry.captureException(error);
+            throw error;
+        }
+    }
+
+    getEvolutionData = async (restaurantId: string | Types.ObjectId, dateFilter: Date | null, format: string): Promise<any> => {
+        try {
+            if (!Types.ObjectId.isValid(restaurantId)) throw new BadRequestError("ID inválido");
+
+            const matchStage: any = {
+                restaurant: new Types.ObjectId(restaurantId.toString()),
+                isPaid: true
+            };
+            if (dateFilter) matchStage.createdAt = { $gte: dateFilter };
+
+            return await OrderModel.aggregate([
+                { $match: matchStage },
+                {
+                    $group: {
+                        _id: { $dateToString: { format, date: "$createdAt" } },
+                        orders: { $sum: 1 },
+                        revenue: { $sum: "$pricing.total" }
+                    }
+                },
+                { $sort: { _id: 1 } },
+                { $limit: 6 }
+            ]);
+        } catch (error) {
+            Sentry.captureException(error);
+            throw error;
+        }
+    }
+
+    getWaitersRanking = async (restaurantId: string | Types.ObjectId, dateFilter?: Date | null): Promise<any> => {
+        try {
+            if (!Types.ObjectId.isValid(restaurantId)) throw new BadRequestError("ID inválido");
+
+            const matchStage: any = {
+                restaurant: new Types.ObjectId(restaurantId.toString()),
+                isPaid: true,
+                waiterId: { $exists: true, $ne: null }
+            };
+            if (dateFilter) matchStage.createdAt = { $gte: dateFilter };
+
+            return await OrderModel.aggregate([
+                { $match: matchStage },
+                {
+                    $group: {
+                        _id: "$waiterId",
+                        totalOrders: { $sum: 1 },
+                        totalRevenue: { $sum: "$pricing.total" }
+                    }
+                },
+                {
+                    $lookup: {
+                        from: "users",
+                        localField: "_id",
+                        foreignField: "_id",
+                        as: "waiterData"
+                    }
+                },
+                { $unwind: "$waiterData" },
+                {
+                    $project: {
+                        _id: 1,
+                        waiterName: "$waiterData.name",
+                        waiterImage: "$waiterData.profileImage",
+                        totalOrders: 1,
+                        totalRevenue: 1
+                    }
+                },
+                { $sort: { totalOrders: -1 } }
+            ]);
+        } catch (error) {
+            Sentry.captureException(error);
+            throw error;
+        }
+    }
+
     updateStatusItems = async (orderId: string | Types.ObjectId, itemId: string | Types.ObjectId, newStatus: string, deletionReason?: string): Promise<OrderDB | null> => {
         try {
 
@@ -33,10 +235,8 @@ class OrderMongoDao extends MongoDao<OrderDB, CreateOrderDto> {
                 updatedAt: new Date(),
             };
 
-            if (newStatus === "cancelled" && deletionReason) {
-                updateFields["items.$.deletionReason"] = deletionReason;
-            }
-
+            if (newStatus === "cancelled" && deletionReason) updateFields["items.$.deletionReason"] = deletionReason;
+            
             const updatedOrder = await this.model.findOneAndUpdate(
                 {
                     _id: orderId,
@@ -54,7 +254,7 @@ class OrderMongoDao extends MongoDao<OrderDB, CreateOrderDto> {
         }
     }
 
-    getById = async (id: string | Types.ObjectId): Promise<OrderDB | null> => {
+    getById = async (id: string | Types.ObjectId, populate: boolean = false): Promise<OrderDB | null> => {
         try {
             if (!Types.ObjectId.isValid(id)) throw new BadRequestError("ID inválido");
             Sentry.addBreadcrumb({
@@ -62,11 +262,16 @@ class OrderMongoDao extends MongoDao<OrderDB, CreateOrderDto> {
                 message: 'Executing getById query with populate',
                 data: { collection: this.model.collection.name, id: id.toString() }
             });
-            return (await this.model.findById(id)
-                .populate("clientId", "name profileImage")
-                .populate("waiterId", "name profileImage")
-                .populate("tableId", "tableNumber status")
-                .lean()) as OrderDB | null;
+
+            const query = this.model.findById(id);
+
+            if (populate) {
+                query.populate("clientId", "name profileImage")
+                    .populate("waiterId", "name profileImage")
+                    .populate("tableId", "tableNumber status");
+            }
+
+            return (await query.lean()) as OrderDB | null;
         } catch (error) {
             throw error
         }
@@ -90,9 +295,7 @@ class OrderMongoDao extends MongoDao<OrderDB, CreateOrderDto> {
             const query: any = { restaurant: restaurant };
 
             // Filtro por status de la orden (no de los items)
-            if (filters.status) {
-                query.status = filters.status;
-            }
+            if (filters.status) query.status = filters.status;
 
             // Filtro por mozo
             if (filters.waiter) {
@@ -136,7 +339,7 @@ class OrderMongoDao extends MongoDao<OrderDB, CreateOrderDto> {
             // Configurar opciones de paginación
             const options: any = {
                 page: filters.page || 1,
-                limit: filters.limit || 5,
+                limit: filters.limit || 10,
                 populate: [
                     { path: "waiterId", select: "name" },
                     { path: "tableId", select: "tableNumber" }

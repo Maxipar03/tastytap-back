@@ -105,3 +105,30 @@ export const validateDeleteItem = Joi.object({
             'any.required': 'La razón de eliminación es obligatoria'
         })
 })
+
+export const validateUpdateOrderStatus = Joi.object({
+    status: Joi.string()
+        .valid('pending', 'delivered', 'cancelled', 'cashed')
+        .required()
+        .messages({
+            'string.base': 'El estado debe ser texto',
+            'any.only': 'Estado inválido',
+            'any.required': 'El estado es obligatorio'
+        }),
+    deletionReason: Joi.when('status', {
+        is: 'cancelled',
+        then: Joi.string()
+            .trim()
+            .min(3)
+            .max(200)
+            .required()
+            .messages({
+                'string.base': 'El motivo de cancelación debe ser texto',
+                'string.empty': 'El motivo de cancelación es obligatorio',
+                'string.min': 'El motivo debe tener al menos 3 caracteres',
+                'string.max': 'El motivo no puede exceder 200 caracteres',
+                'any.required': 'El motivo de cancelación es obligatorio cuando se cancela una orden'
+            }),
+        otherwise: Joi.optional()
+    })
+})

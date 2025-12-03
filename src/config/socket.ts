@@ -1,6 +1,5 @@
 import { Server, Socket } from "socket.io";
 import { Server as HttpServer } from "http";
-import config from "./config.js";
 import { ClientToServerEvents, SocketData } from "../types/socket.js";
 
 // La variable 'io' ahora tiene los tipos correctos para los eventos
@@ -45,7 +44,6 @@ export const initSocketIO = (httpServer: HttpServer) => {
       
       if (role === "waiter" || role === "manager" || role === "chef") {
         socket.join(`restaurant-${restaurant}`);
-        // Puedes guardar los datos en el objeto del socket para referencia futura
         socket.data.restaurant = restaurant;
         socket.data.role = role;
         console.log(`${role} unido al restaurante ${restaurant}`);

@@ -31,9 +31,7 @@ export const errorHandler = (error: Error | CustomError, req: Request, res: Resp
     if (error instanceof CustomError) {
         logger.warn({ ...requestInfo, error: error.message, status: error.status }, "Error del cliente");
         
-        if (error.status >= 500) {
-            Sentry.captureException(error);
-        }
+        if (error.status >= 500) Sentry.captureException(error);
         
         return res.status(error.status).json({
             status: error.status,

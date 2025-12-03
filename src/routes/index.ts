@@ -8,6 +8,7 @@ import orderRouter from "./orderRouter.js";
 import tableSessionRouter from "./tableSessionRouter.js";
 import restaurantRouter from "./restaurantRouter.js";
 import stripeRouter from "./stripeRouter.js";
+import dashboardRouter from "./dashboardRouter.js";
 
 const router = Router();
 
@@ -20,5 +21,6 @@ router.use("/order", orderRouter);
 router.use("/dishes", foodRouter);
 router.use("/tables", tableRouter);
 router.use("/access", accesRouter);
+router.use("/dashboard", dashboardRouter);
 
 export default router;

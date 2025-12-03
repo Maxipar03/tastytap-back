@@ -11,6 +11,7 @@ import generateToken from "../utils/generateToken.js";
 import { tableServices } from "./tableService.js";
 import { tableSessionService } from "./tableSessionService.js";
 import logger from "../utils/logger.js";
+
 export default class OrderService {
 
     private dao: OrderDao
@@ -55,17 +56,9 @@ export default class OrderService {
         session.startTransaction();
         
         try {
-            const logContext = {
-                restaurantId: body.restaurant,
-                orderType: body.orderType,
-                tableId: body.tableId,
-                clientId: body.clientId,
-                itemsCount: body.items?.length,
-                total: body.pricing.total
-            };
 
             if (orderId) {
-                logger.info({ ...logContext, existingOrderId: orderId }, "Agregando items a orden existente");
+                logger.info({ existingOrderId: orderId }, "Agregando items a orden existente");
                 const updatedOrder = await this.addItemsToOrder(orderId, body.items, session);
                 if (!updatedOrder) throw new CustomError("Error al agregar items a la orden", 500);
                 
@@ -74,28 +67,38 @@ export default class OrderService {
                 return { order: updatedOrder, token: orderToken };
             }
 
-            logger.info(logContext, "Creando nueva orden con transacción");
+            logger.info("Creando nueva orden con transacción");
+            
+            // Para órdenes takeaway, marcar items como "awaiting_payment"
+            if (body.orderType === "togo") {
+                body.items = body.items.map(item => ({
+                    ...item,
+                    status: "awaiting_payment" as any
+                }));
+            }
+            
             await this.decreaseStock(body.items, session);
 
             const response = await this.dao.create(body, session);
             if (!response) {
-                logger.error(logContext, "Error al crear orden en base de datos");
+                logger.error("Error al crear orden en base de datos");
                 throw new CustomError("Error al crear el plato", 500);
             }
 
             // Si es dine-in y tiene tableId, manejar sesión de mesa
             if (body.orderType === "dine-in" && body.tableId) {
                 const table = await tableServices.getById(body.tableId);
-
                 let sessionId = table?.activeSession;
                 logger.debug({ tableId: body.tableId, sessionId }, "Verificando sesión activa de mesa");
+
+                // En el caso de que la mesa no tenga session crearla y actualizar mesa
                 if (!sessionId) {
-                    const newSession = await tableSessionService.createSession(body.restaurant, body.tableId);
+                    const newSession = await tableSessionService.createSession(body.restaurant, body.tableId, session);
                     sessionId = newSession._id;
                     await tableServices.update(body.tableId, { activeSession: sessionId }, body.restaurant);
                 }
 
-                await tableSessionService.addOrderToSession(sessionId, response._id);
+                await tableSessionService.addOrderToSession(sessionId, response._id, session);
             }
 
             const populatedOrder = await response
@@ -161,56 +164,67 @@ export default class OrderService {
         }
     };
 
-    updateStatusOrder = async (id: string, body: Partial<OrderDB>, restaurant: string | Types.ObjectId): Promise<OrderDB | null> => {
-        const session = await startSession();
-        session.startTransaction();
+    updateStatusOrder = async (id: string, body: Partial<OrderDB>, restaurant: string | Types.ObjectId, waiterId?: string | Types.ObjectId, externalSession?: any): Promise<OrderDB | null> => {
+        const useExternalSession = !!externalSession;
+        const session = externalSession || await startSession();
         
+        if (!useExternalSession) session.startTransaction();  
+
         try {
+            if (body.status === "cancelled" && waiterId) body.cancelledBy = waiterId as Types.ObjectId;
+            
             const response = await this.dao.update(id, body, session);
-            if (!response) {
-                throw new NotFoundError("No se encontro el plato");
-            }
+            if (!response) throw new NotFoundError("No se encontro el plato");
+            
+            // Verificar si la orden está cancelada o cobrada y cerrar mesa si no hay más órdenes activas
+            if ((body.status === "cancelled" || body.status === "cashed") && response.orderType === "dine-in" && response.tableId && Types.ObjectId.isValid(response.tableId)) {
+                try {
+                    const table = await tableServices.getById(response.tableId);
 
-            // Verificar si la orden está completada y es la última de la mesa (solo para dine-in)
-            if (body.status === "cashed" && response.orderType === "dine-in" && response.tableId) {
-                const table = await tableServices.getById(response.tableId);
+                    if (table?.activeSession) {
+                        const tableSession = await tableSessionService.getActiveSession(response.tableId, session);
 
-                if (table?.activeSession) {
-                    const tableSession = await tableSessionService.getActiveSession(response.tableId);
+                        if (tableSession) {
+                            const allOrdersCompleted = tableSession.orders.every((order: any) => 
+                                order.status === "cashed" || order.status === "cancelled"
+                            );
 
-                    if (tableSession) {
-                        const sessionOrders = await Promise.all(
-                            tableSession.orders.map(orderId => this.dao.getById(orderId))
-                        );
-
-                        const allOrdersCashed = sessionOrders.every(order => order?.status === "cashed");
-
-                        logger.debug({ 
-                            sessionId: tableSession._id, 
-                            tableId: response.tableId, 
-                            allOrdersCashed, 
-                            ordersCount: sessionOrders.length 
-                        }, "Verificando si todas las órdenes de la sesión están cobradas");
-
-                        if (allOrdersCashed) {
-                            logger.info({ 
+                            logger.debug({ 
                                 sessionId: tableSession._id, 
                                 tableId: response.tableId, 
-                                restaurantId: restaurant 
-                            }, "Cerrando sesión de mesa - todas las órdenes cobradas");
-                            
-                            await tableSessionService.closeSession(tableSession._id);
-                            await tableServices.update(response.tableId, {
-                                state: "available",
-                                waiterServing: null,
-                                activeSession: null
-                            }, restaurant);
+                                allOrdersCompleted, 
+                                ordersCount: tableSession.orders.length 
+                            }, "Verificando si todas las órdenes de la sesión están completadas");
+
+                            if (allOrdersCompleted) {
+                                logger.info({ 
+                                    sessionId: tableSession._id, 
+                                    tableId: response.tableId, 
+                                    restaurantId: restaurant 
+                                }, "Cerrando sesión de mesa - todas las órdenes completadas");
+                                
+                                await tableSessionService.closeSession(tableSession._id);
+                                await tableServices.update(response.tableId, {
+                                    state: "available",
+                                    waiterServing: null,
+                                    activeSession: null
+                                }, restaurant);
+                            }
                         }
                     }
+                } catch (tableError: any) {
+                    logger.error({ 
+                        error: tableError, 
+                        errorMessage: tableError?.message,
+                        errorStack: tableError?.stack,
+                        orderId: id, 
+                        tableId: response.tableId,
+                        tableIdValid: Types.ObjectId.isValid(response.tableId)
+                    }, "Error al gestionar sesión de mesa, pero orden actualizada");
                 }
             }
 
-            await session.commitTransaction();
+            if (!useExternalSession) await session.commitTransaction(); 
 
             const io = getIO();
 
@@ -230,11 +244,12 @@ export default class OrderService {
 
             return response;
         } catch (error) {
-            await session.abortTransaction();
+            if (!useExternalSession) await session.abortTransaction();
+            
             logger.error({ error, orderId: id }, "Error en transacción de actualización de orden - rollback ejecutado");
             throw error;
         } finally {
-            session.endSession();
+            if (!useExternalSession) session.endSession();   
         }
     };
 
@@ -275,9 +290,9 @@ export default class OrderService {
     //     }
     // }
 
-    getById = async (id: string | Types.ObjectId): Promise<OrderDB | null> => {
+    getById = async (id: string | Types.ObjectId, populate: boolean = true): Promise<OrderDB | null> => {
         try {
-            const response = await this.dao.getById(id);
+            const response = await this.dao.getById(id, populate);
             if (!response) throw new NotFoundError("No se encontró la orden");
             return response;
         } catch (error) {
@@ -306,10 +321,12 @@ export default class OrderService {
                 item.status === "delivered" || item.status === "cancelled"
             )
 
-            // Si todos los items están completados, cambiar el estado de la orden a delivered
+            // Si todos los items están completados, cambiar el estado de la orden
             if (allItemsCompleted && updatedOrder.status !== "delivered") {
-                const orderWithNewStatus = await this.updateStatusOrder(orderId.toString(), { status: "delivered" }, updatedOrder.restaurant)
-                if (orderWithNewStatus) updatedOrder.status = "delivered"
+                // Para takeaway, cerrar la orden (cashed) cuando todos los items estén servidos
+                const finalStatus = updatedOrder.orderType === "togo" ? "cashed" : "delivered"
+                const orderWithNewStatus = await this.updateStatusOrder(orderId.toString(), { status: finalStatus }, updatedOrder.restaurant)
+                if (orderWithNewStatus) updatedOrder.status = finalStatus
             }
 
             if (newStatus === "cancelled") {
@@ -368,7 +385,8 @@ export default class OrderService {
 
     addItemsToOrder = async (orderId: string | Types.ObjectId, items: any[], session?: any): Promise<OrderDB | null> => {
         const useExternalSession = !!session;
-        if (!session) {
+
+        if (!useExternalSession) {
             session = await startSession();
             session.startTransaction();
         }
@@ -376,20 +394,18 @@ export default class OrderService {
         try {
             // Verificar el estado actual de la orden
             const currentOrder = await this.dao.getById(orderId);
-
             if (!currentOrder) throw new NotFoundError("No se encontró la orden");
-            // Si la orden está lista, lanzar error
             if (currentOrder.status === "cashed")  throw new OrderReadyError();
 
             // Descontar stock de cada item nuevo
             await this.decreaseStock(items, session);
 
+            // Llamada a DAO para agregar items a la orden
             const updatedOrder = await this.dao.addItemsToOrder(orderId, items, session);
             if (!updatedOrder) throw new NotFoundError("No se encontró la orden");
 
             if (!useExternalSession) await session.commitTransaction();
             
-
             const io = getIO();
 
             io.to(`order-${updatedOrder._id}`).emit("items-agregados", {
@@ -411,7 +427,6 @@ export default class OrderService {
             throw error;
         } finally {
             if (!useExternalSession) session.endSession();
-            
         }
     };
 

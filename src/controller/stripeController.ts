@@ -44,7 +44,11 @@ export const handleWebhook = async (req: Request, res: Response, next: NextFunct
     }
 
     try {
-        logger.info({ signature: signature.substring(0, 20) + '...' }, "Procesando webhook de Stripe");
+        logger.info({ 
+            signature: signature.substring(0, 20) + '...',
+            bodySize: req.body.length,
+            contentType: req.headers['content-type']
+        }, "Procesando webhook de Stripe");
         
         await stripeService.handleWebhook(req.body, signature);
         

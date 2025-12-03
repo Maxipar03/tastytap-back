@@ -41,7 +41,16 @@ class FoodMongoDao extends MongoDao<FoodDB, CreateFoodDto> {
     async getByRestaurant(restaurant: string | Types.ObjectId, filters: MenuFiltersDto = {}) {
         try {
             const menuMatch = this._buildMenuQuery(filters);
-            return await this.model.find({ restaurant: restaurant, ...menuMatch }).lean();
+            const page = filters.page || 1;
+            const limit = filters.limit || 20;
+            const skip = (page - 1) * limit;
+            
+            const query = this.model.find({ restaurant: restaurant, ...menuMatch })
+                .skip(skip)
+                .limit(limit)
+                .lean();
+            
+            return await query;
         } catch (error) {
             console.error("Error fetching food by restaurant ID:", error);
             throw error;

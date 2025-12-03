@@ -5,6 +5,8 @@ export interface MenuFiltersDto {
     isVegetarian?: boolean;
     isVegan?: boolean;
     isGlutenFree?: boolean;
+    page?: number;
+    limit?: number;
 }
 
 export class MenuFiltersMapper {
@@ -20,6 +22,10 @@ export class MenuFiltersMapper {
         if (query.isVegetarian !== undefined) filters.isVegetarian = query.isVegetarian === 'true';
         if (query.isVegan !== undefined) filters.isVegan = query.isVegan === 'true';
         if (query.isGlutenFree !== undefined) filters.isGlutenFree = query.isGlutenFree === 'true';
+        
+        // Paginación
+        if (query.page) filters.page = parseInt(query.page);
+        if (query.limit) filters.limit = parseInt(query.limit);
 
         return filters;
     }

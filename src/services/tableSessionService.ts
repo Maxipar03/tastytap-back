@@ -9,15 +9,15 @@ export default class TableSessionService {
         this.dao = dao;
     }
 
-    createSession = async (restaurant: string | Types.ObjectId, table: string | Types.ObjectId): Promise<TableSessionDB> => this.dao.createSession(restaurant, table);
+    createSession = async (restaurant: string | Types.ObjectId, table: string | Types.ObjectId, session?: any): Promise<TableSessionDB> => this.dao.createSession(restaurant, table, session);
 
-    getActiveSession = async (tableId: string | Types.ObjectId): Promise<TableSessionDB | null> => this.dao.getActiveByTableId(tableId);
+    getActiveSession = async (tableId: string | Types.ObjectId ,session?: any): Promise<TableSessionDB | null> => this.dao.getActiveByTableId(tableId, session);
 
     getActiveSessionsByRestaurant = async (restaurant: string | Types.ObjectId): Promise<TableSessionDB[]> => this.dao.getActiveSessionsByRestaurant(restaurant);
 
     closeSession = async (sessionId: string | Types.ObjectId): Promise<TableSessionDB | null> => this.dao.closeSession(sessionId);
     
-    addOrderToSession = async (sessionId: string | Types.ObjectId, orderId: string | Types.ObjectId): Promise<TableSessionDB | null> => this.dao.addOrderToSession(sessionId, orderId);
+    addOrderToSession = async (sessionId: string | Types.ObjectId, orderId: string | Types.ObjectId, session?: any): Promise<TableSessionDB | null> => this.dao.addOrderToSession(sessionId, orderId, session);
 
 }
 

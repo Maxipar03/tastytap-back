@@ -16,10 +16,10 @@ export const compressionConfig = compression({
         
         // Comprimir solo tipos de contenido específicos
         const contentType = res.getHeader('content-type') as string;
-        if (contentType) return /json|text|javascript|css|xml|svg/.test(contentType);
+        if (contentType) return /json|text|javascript|css|xml|svg|html/.test(contentType);
         
         
-        // Por defecto, comprimir
-        return true;
+        // Por defecto, no comprimir
+        return false;
     }
 });

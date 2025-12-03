@@ -1,3 +1,4 @@
+import * as Sentry from "@sentry/node";
 import { initSentry } from "./config/sentry.js";
 import express, { Express, json, urlencoded, Request, Response, NextFunction } from "express";
 import { initSocketIO } from "./config/socket.js";
@@ -14,7 +15,6 @@ import { httpLogger } from "./middleware/httpLogger.js";
 import cors from "cors";
 import helmet from "helmet";
 import dotenv from "dotenv";
-import * as Sentry from "@sentry/node";
 import logger from "./utils/logger.js";
 import { setupProcessLogging } from "./utils/processLogger.js";
 import { rateLimitMiddleware } from "./middleware/rateLimiter.js";

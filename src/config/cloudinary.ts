@@ -1,11 +1,12 @@
 import { v2 as cloudinary } from "cloudinary";
 import config from "./config";
+import { CustomError } from "../utils/customError";
 
 const validateConfig = () => {
     const required: (keyof typeof config)[] = ['CLOUDINARY_CLOUD_NAME', 'CLOUDINARY_API_KEY', 'CLOUDINARY_API_SECRET'];
     for (const key of required) {
         if (!config[key]) {
-            throw new Error(`${key} no está configurado`);
+            throw new CustomError(`${key} no está configurado`, 500)
         }
     }
 };

@@ -52,7 +52,7 @@ const orderItemSchema = new Schema < OrderItem > ({
     },
     status: {
         type: String,
-        enum: ["pending", "preparing", "ready", "delivered", "cancelled"],
+        enum: ["awaiting_payment", "pending", "preparing", "ready", "delivered", "cancelled"],
         default: "pending",
     },
     deletionReason: {
@@ -122,6 +122,14 @@ const orderSchema = new Schema < OrderDB > ({
     isPaid: {
         type: Boolean,
         default: false,
+    },
+    cancellationReason: {
+        type: String,
+        trim: true,
+    },
+    cancelledBy: {
+        type: Schema.Types.ObjectId,
+        ref: "user",
     },
 }, {
     timestamps: true,

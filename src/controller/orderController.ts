@@ -88,16 +88,17 @@ class OrderController {
     updateStatusOrder = async (req: Request, res: Response, next: NextFunction) => {
         try {
             const { id } = req.params;
-            const { status } = req.body;
+            const { status, deletionReason } = req.body;
             const restaurant = req.user?.restaurant;
             const waiterId = req.user?.id;
 
             if (!restaurant) throw new NotFoundError("Datos de restaurante no encontrados")
             if (!id) throw new NotFoundError("Datos de orden no encontrados");
+            if (status === "cancelled" && (!deletionReason || deletionReason.trim() === "")) throw new BadRequestError("El motivo de cancelación es obligatorio");
 
             logger.info({ orderId: id, newStatus: status, waiterId, restaurantId: restaurant }, "Actualizando estado de orden");
 
-            const response = await this.service.updateStatusOrder(id, req.body, restaurant);
+            const response = await this.service.updateStatusOrder(id, req.body, restaurant, waiterId);
 
             logger.info({ orderId: id, waiterId }, "Estado de orden actualizado exitosamente");
 
@@ -109,120 +110,130 @@ class OrderController {
     }
 
 
-getByRestaurantId = async (req: Request, res: Response, next: NextFunction) => {
-    try {
-        const waiterId = req.user?.id;
-        const restaurant = req.user?.restaurant;
+    getByRestaurantId = async (req: Request, res: Response, next: NextFunction) => {
+        try {
+            const waiterId = req.user?.id;
+            const restaurant = req.user?.restaurant;
 
-        if (!restaurant) throw new NotFoundError("Datos de restaurante no encontrados");
-        if (!waiterId) throw new NotFoundError("Datos de mesero no encontrados");
+            if (!restaurant) throw new NotFoundError("Datos de restaurante no encontrados");
+            if (!waiterId) throw new NotFoundError("Datos de mesero no encontrados");
 
-        const filters = OrderFiltersMapper.mapFromQuery(req.query, waiterId.toString());
+            const filters = OrderFiltersMapper.mapFromQuery(req.query, waiterId.toString());
 
-        const response = await this.service.getByRestaurantId(restaurant, filters);
+            const response = await this.service.getByRestaurantId(restaurant, filters);
 
-        return httpResponse.Ok(res, {
-            orders: response?.docs || [],
-            pagination: {
-                totalDocs: response?.totalDocs || 0,
-                limit: response?.limit || 10,
-                totalPages: response?.totalPages || 0,
-                page: response?.page || 1,
-                pagingCounter: response?.pagingCounter || 0,
-                hasPrevPage: response?.hasPrevPage || false,
-                hasNextPage: response?.hasNextPage || false,
-                prevPage: response?.prevPage || null,
-                nextPage: response?.nextPage || null
-            },
-            waiterId,
-            restaurant
-        });
-    } catch (error) {
-        next(error);
-    }
-};
-
-getByUserId = async (req: Request, res: Response, next: NextFunction) => {
-    try {
-        const userId = req.user?.id;
-        if (!userId) throw new NotFoundError("Datos de usuario no encontrados");
-        const response = await this.service.getByUserId(userId);
-        return httpResponse.Ok(res, response);
-    } catch (error) {
-        next(error);
-    }
-};
-
-// callWaiter = async (req: Request, res: Response, next: NextFunction) => {
-//     try {
-//         const tableData = req.tableData;
-
-//         if (!tableData) throw new NotFoundError("Datos de mesa no encontrados");
-
-//         const response = await this.service.callWaiter(
-//             tableData.tableId,
-//             tableData.waiterId,
-//         );
-
-//         return httpResponse.Ok(res, response);
-//     } catch (error) {
-//         next(error);
-//     }
-// }
-
-updateStatusItems = async (req: Request, res: Response, next: NextFunction) => {
-    try {
-        const { orderId, itemId } = req.params
-        const { status, deletionReason } = req.body
-        if (!orderId || !itemId) throw new NotFoundError("Datos de orden no encontrados")
-
-        // Validar razón de eliminación si el status es cancelled
-        if (status === "cancelled" && (!deletionReason || deletionReason.trim() === "")) {
-            throw new BadRequestError("La razón de eliminación es obligatoria");
+            return httpResponse.Ok(res, {
+                orders: response?.docs || [],
+                pagination: {
+                    totalDocs: response?.totalDocs || 0,
+                    limit: response?.limit || 10,
+                    totalPages: response?.totalPages || 0,
+                    page: response?.page || 1,
+                    pagingCounter: response?.pagingCounter || 0,
+                    hasPrevPage: response?.hasPrevPage || false,
+                    hasNextPage: response?.hasNextPage || false,
+                    prevPage: response?.prevPage || null,
+                    nextPage: response?.nextPage || null
+                },
+                waiterId,
+                restaurant
+            });
+        } catch (error) {
+            next(error);
         }
+    };
 
-        // orderId del parámetro es realmente el itemId, itemId del parámetro es realmente el orderId
-        const updatedOrder = await this.service.updateStatusItems(orderId, itemId, status, deletionReason)
+    getByUserId = async (req: Request, res: Response, next: NextFunction) => {
+        try {
+            const userId = req.user?.id;
+            if (!userId) throw new NotFoundError("Datos de usuario no encontrados");
+            const response = await this.service.getByUserId(userId);
+            return httpResponse.Ok(res, response);
+        } catch (error) {
+            next(error);
+        }
+    };
 
-        return httpResponse.Ok(res, updatedOrder)
-    } catch (error) {
-        next(error)
+    // callWaiter = async (req: Request, res: Response, next: NextFunction) => {
+    //     try {
+    //         const tableData = req.tableData;
+
+    //         if (!tableData) throw new NotFoundError("Datos de mesa no encontrados");
+
+    //         const response = await this.service.callWaiter(
+    //             tableData.tableId,
+    //             tableData.waiterId,
+    //         );
+
+    //         return httpResponse.Ok(res, response);
+    //     } catch (error) {
+    //         next(error);
+    //     }
+    // }
+
+    updateStatusItems = async (req: Request, res: Response, next: NextFunction) => {
+        try {
+            const { orderId, itemId } = req.params
+            const { status, deletionReason } = req.body
+            if (!orderId || !itemId) throw new NotFoundError("Datos de orden no encontrados")
+
+            // Validar razón de eliminación si el status es cancelled
+            if (status === "cancelled" && (!deletionReason || deletionReason.trim() === "")) throw new BadRequestError("La razón de eliminación es obligatoria");
+
+            // orderId del parámetro es realmente el itemId, itemId del parámetro es realmente el orderId
+            const updatedOrder = await this.service.updateStatusItems(orderId, itemId, status, deletionReason)
+
+            return httpResponse.Ok(res, updatedOrder)
+        } catch (error) {
+            next(error)
+        }
     }
-}
 
-deleteItem = async (req: Request, res: Response, next: NextFunction) => {
-    try {
-        const { orderId, itemId } = req.params
-        const { deletionReason } = req.body
+    deleteItem = async (req: Request, res: Response, next: NextFunction) => {
+        try {
+            const { orderId, itemId } = req.params
+            const { deletionReason } = req.body
 
-        if (!orderId || !itemId) throw new NotFoundError("Datos de orden no encontrados")
-        if (!deletionReason || deletionReason.trim() === "") throw new BadRequestError("La razón de eliminación es obligatoria")
+            if (!orderId || !itemId) throw new NotFoundError("Datos de orden no encontrados")
+            if (!deletionReason || deletionReason.trim() === "") throw new BadRequestError("La razón de eliminación es obligatoria")
 
-        const updatedOrder = await this.service.updateStatusItems(orderId, itemId, "cancelled", deletionReason)
-        return httpResponse.Ok(res, updatedOrder)
-    } catch (error) {
-        next(error)
+            const updatedOrder = await this.service.updateStatusItems(orderId, itemId, "cancelled", deletionReason)
+            return httpResponse.Ok(res, updatedOrder)
+        } catch (error) {
+            next(error)
+        }
     }
-}
 
-getOrdersByRestaurant = async (req: Request, res: Response, next: NextFunction) => {
-    try {
-        const restaurant = req.user?.restaurant;
-        if (!restaurant) throw new NotFoundError("Datos de restaurante no encontrados");
+    getOrdersByRestaurant = async (req: Request, res: Response, next: NextFunction) => {
+        try {
+            const restaurant = req.user?.restaurant;
+            if (!restaurant) throw new NotFoundError("Datos de restaurante no encontrados");
 
-        const response = await this.service.getByRestaurantId(restaurant, {});
+            const response = await this.service.getByRestaurantId(restaurant, {});
 
-        logger.debug({ restaurantId: restaurant, ordersCount: response?.docs?.length }, "Obteniendo órdenes por restaurante");
-        return httpResponse.Ok(res, response?.docs || []);
-    } catch (error) {
-        next(error);
+            logger.debug({ restaurantId: restaurant, ordersCount: response?.docs?.length }, "Obteniendo órdenes por restaurante");
+            return httpResponse.Ok(res, response?.docs || []);
+        } catch (error) {
+            next(error);
+        }
+    };
+
+    validate = async (req: Request, res: Response, next: NextFunction) => {
+        if (!req.orderId) return httpResponse.NoContent(res)
+        return httpResponse.Ok(res, req.orderId);
     }
-};
 
-validate = async (req: Request, res: Response, next: NextFunction) => {
-    if (!req.orderId) return httpResponse.NoContent(res)
-    return httpResponse.Ok(res, req.orderId);
-}
+    getOrderDetails = async (req: Request, res: Response, next: NextFunction) => {
+        try {
+            const { id } = req.params;
+            if (!id) throw new NotFoundError("ID de orden no encontrado");
+
+            const response = await this.service.getById(id, true);
+            return httpResponse.Ok(res, response);
+        } catch (error) {
+            next(error);
+        }
+    }
 }
 
 export const orderController = new OrderController(orderService)

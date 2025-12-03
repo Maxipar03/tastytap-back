@@ -1,12 +1,13 @@
 import { createClient } from 'redis';
 import logger from '../utils/logger';
+import config from './config';
 
 const client = createClient({
-    username: process.env.REDIS_USERNAME || " ",
-    password: process.env.REDIS_PASSWORD || " ",
+    username: config.REDIS_USERNAME || " ",
+    password: config.REDIS_PASSWORD || " ",
     socket: {
-        host: process.env.REDIS_HOST || " ",
-        port: Number(process.env.REDIS_PORT) || 6379
+        host: config.REDIS_HOST || " ",
+        port: Number(config.REDIS_PORT) || 6379
     }
 });
 

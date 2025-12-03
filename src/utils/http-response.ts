@@ -72,7 +72,7 @@ export class HttpResponse {
 
     NoContent(res: Response): Response {
         return res.status(HttpStatus.NO_CONTENT).json({
-            status: HttpStatus.INTERNAL_SERVER_ERROR,
+            status: HttpStatus.NO_CONTENT,
             statusMsg: "No content"
         });
     }
