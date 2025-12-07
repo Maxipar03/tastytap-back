@@ -110,6 +110,11 @@ const orderSchema = new Schema < OrderDB > ({
         type: String,
         trim: true,
     },
+    manual: {
+        type: Boolean,
+        default: false,
+        trim: true,
+    },
     pricing: {
         type: orderPricingSchema,
         required: true,

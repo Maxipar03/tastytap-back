@@ -339,7 +339,7 @@ class OrderMongoDao extends MongoDao<OrderDB, CreateOrderDto> {
             // Configurar opciones de paginación
             const options: any = {
                 page: filters.page || 1,
-                limit: filters.limit || 10,
+                limit: filters.limit || 5,
                 populate: [
                     { path: "waiterId", select: "name" },
                     { path: "tableId", select: "tableNumber" }

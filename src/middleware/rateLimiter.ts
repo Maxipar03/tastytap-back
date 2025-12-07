@@ -14,9 +14,9 @@ const authRateLimiter = new RateLimiterMemory({
     duration: 60,
 });
 
-// Rate limiter para API críticas (20 requests por minuto)
+// Rate limiter para API críticas (40 requests por minuto)
 const apiRateLimiter = new RateLimiterMemory({
-    points: 20,
+    points: 40,
     duration: 60,
 });
 

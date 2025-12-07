@@ -2,6 +2,8 @@
 import { Types } from "mongoose";
 import { NotFoundError } from "../utils/customError.js";
 
+import { CreateOrderDto } from "../DTO/orderDto.js";
+
 export const prepareOrderData = ({
     body,
     tableData,
@@ -12,8 +14,8 @@ export const prepareOrderData = ({
     tableData?: any;
     user?: any;
     toGoData?: any;
-}) => {
-    
+}): CreateOrderDto => {
+
     if (toGoData) {
         return {
             items: body.items,
@@ -23,6 +25,7 @@ export const prepareOrderData = ({
             restaurant: toGoData.restaurant.id,
             userName: user ? user.name : body.guestName,
             clientId: user ? new Types.ObjectId(user.id) : undefined,
+            isPaid: false,
         };
     }
 
@@ -38,5 +41,6 @@ export const prepareOrderData = ({
         restaurant: tableData.restaurant.id,
         userName: user ? user.name : body.guestName,
         clientId: user ? new Types.ObjectId(user.id) : undefined,
+        isPaid: false,
     };
 };

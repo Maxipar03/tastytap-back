@@ -12,6 +12,8 @@ const router = Router();
 
 router.post("/", orderPerformanceMiddleware, apiRateLimitMiddleware, verifyTokenAccess, optionalVerifyTokenUser, verifyTokenOrderOptional, validateJoi(createOrderSchema, "body"), orderController.create);
 
+router.post("/manual", verifyTokenUser, checkRole(["waiter", "admin"]), orderController.createManualOrder);
+
 // router.post("/call", verifyTokenAccess, orderController.callWaiter);
 
 router.put("/:orderId/items/:itemId/status", orderPerformanceMiddleware, apiRateLimitMiddleware, verifyTokenUser, checkRole(["waiter", "admin", "chef"]), validateJoi( validateUpdateItemStatus, "params" ), orderController.updateStatusItems);

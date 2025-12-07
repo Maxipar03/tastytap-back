@@ -13,4 +13,5 @@ export interface CreateOrderDto {
     paymentMethod?: PaymentMethod;
     isPaid: boolean;
     orderType: "dine-in" | "togo";
+    manual?: boolean;
 }

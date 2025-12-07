@@ -1,7 +1,8 @@
 import TableSessionService, { tableSessionService } from "../services/tableSessionService.js";
 import { Request, Response, NextFunction } from "express";
 import { httpResponse } from "../utils/http-response.js";
-import { UnauthorizedError } from "../utils/customError.js";
+import { UnauthorizedError, BadRequestError } from "../utils/customError.js";
+import { tableServices } from "../services/tableService.js";
 
 class TableSessionController {
 
@@ -23,6 +24,31 @@ class TableSessionController {
         }
     };
 
+    createSession = async (req: Request, res: Response, next: NextFunction): Promise<any> => {
+        try {
+            const { tableId } = req.body;
+            const restaurant = req.user?.restaurant;
+            const waiterId = req.user?.id
+            
+            if (!restaurant || !restaurant || !waiterId) throw new UnauthorizedError("Faltan datos para la creacion de la session de mesa");
+
+            const table = await tableServices.getById(tableId);
+            if (!table) throw new BadRequestError("Mesa no encontrada");
+            if (table.state !== "available") throw new BadRequestError("La mesa no está disponible");
+
+            const activeSession = await this.service.getActiveSession(tableId);
+            if (activeSession) throw new BadRequestError("La mesa ya tiene una sesión activa");
+
+            const session = await this.service.createSession(restaurant, tableId);
+            await tableServices.update(tableId, { state: "occupied", activeSession: session._id, waiterServing: waiterId }, restaurant);
+
+            return httpResponse.Ok(res, session);
+        } catch (error) {
+            next(error);
+        }
+    };
+
 }
 
 export const tableSessionController = new TableSessionController(tableSessionService);
+

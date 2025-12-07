@@ -7,4 +7,6 @@ const router = Router();
 
 router.get("/restaurant", verifyTokenUser, checkRole(["waiter", "admin", "chef"]), tableSessionController.getActiveSessionsByRestaurant);
 
+router.post("/", verifyTokenUser, checkRole(["waiter", "admin", "chef"]), tableSessionController.createSession);
+
 export default router;

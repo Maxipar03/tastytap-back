@@ -59,6 +59,7 @@ export interface OrderDB extends Document {
     status: OrderStatus;
     clientId?: Types.ObjectId;
     userName?: string;
+    manual?: boolean;
     pricing: OrderPricing;
     paymentMethod: PaymentMethod;
     isPaid: boolean;

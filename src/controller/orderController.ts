@@ -32,7 +32,7 @@ class OrderController {
 
             logger.info(logContext, "Iniciando creación de orden");
 
-            let orderData: Partial<CreateOrderDto> = prepareOrderData({ body, tableData, user, toGoData });
+            let orderData = prepareOrderData({ body, tableData, user, toGoData });
 
             // Verifica si la mesa de la orden esta disponible (Debe estar ocupada)
             if (!toGoData && tableData) {
@@ -45,7 +45,7 @@ class OrderController {
             }
 
             // Crear la orden y responder con token
-            const result = await this.service.create(orderData as CreateOrderDto, orderId as string);
+            const result = await this.service.create(orderData, orderId as string);
 
             logger.info({ ...logContext, orderId: result.order?._id, total: result.order.pricing?.total }, "Orden creada exitosamente");
 
@@ -126,7 +126,7 @@ class OrderController {
                 orders: response?.docs || [],
                 pagination: {
                     totalDocs: response?.totalDocs || 0,
-                    limit: response?.limit || 10,
+                    limit: response?.limit || 5,
                     totalPages: response?.totalPages || 0,
                     page: response?.page || 1,
                     pagingCounter: response?.pagingCounter || 0,
@@ -227,9 +227,42 @@ class OrderController {
         try {
             const { id } = req.params;
             if (!id) throw new NotFoundError("ID de orden no encontrado");
+            console.log(id)
 
             const response = await this.service.getById(id, true);
             return httpResponse.Ok(res, response);
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    createManualOrder = async (req: Request, res: Response, next: NextFunction) => {
+        try {
+            const { items, guestName, tableId, pricing } = req.body;
+            const restaurant = req.user?.restaurant;
+            const waiterId = req.user?.id;
+
+            if (!restaurant) throw new BadRequestError("No se encontró el restaurante del usuario");
+            if (!tableId) throw new BadRequestError("El ID de la mesa es requerido");
+            if (!items || items.length === 0) throw new BadRequestError("Debe incluir al menos un item");
+            if (!pricing) throw new BadRequestError("El pricing es requerido");
+
+            const orderData: CreateOrderDto = {
+                items,
+                tableId,
+                restaurant,
+                waiterId,
+                userName: guestName || "Cliente",
+                status: "pending",
+                pricing,
+                manual: true,
+                orderType: "dine-in",
+                paymentMethod: "cash",
+                isPaid: false
+            };
+
+            const result = await this.service.create(orderData, "");
+            return httpResponse.Created(res, result.order);
         } catch (error) {
             next(error);
         }
