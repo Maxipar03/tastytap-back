@@ -1,5 +1,5 @@
 import { Document, Types } from "mongoose";
-import { CreateRestaurantDto } from "../DTO/restaurantDto.js";
+import { CreateRestaurantDto } from "../dto/restaurant.dto.js";
 
 export interface RestaurantDB extends Document {
     _id: Types.ObjectId;

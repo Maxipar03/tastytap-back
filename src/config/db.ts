@@ -1,14 +1,13 @@
 import { connect } from "mongoose";
 import config from "./config.js";
-import { NotFoundError } from "../utils/customError.js";
+import { NotFoundError } from "../utils/custom-error.js";
 import logger from "../utils/logger.js";
 import { createIndexes } from "./indexes.js";
 
 export const initMongoDB = async (): Promise<void> => {
     try {
         const uri = config.MONGODB_URI as string;
-        if(!uri) throw new NotFoundError("MONGODB_URI no esta configurado");
-        
+
         logger.info("Iniciando conexion a MongoDB...");
         
         // Configuración del pool de conexiones

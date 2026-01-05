@@ -1,5 +1,5 @@
 import { Document, Types } from "mongoose";
-import { CreateCategoryDto, UpdateCategoryDto } from "../DTO/categoryDto.js";
+import { CreateCategoryDto, UpdateCategoryDto } from "../dto/category.dto.js";
 
 export interface CategoryDB extends Document {
     _id: Types.ObjectId;

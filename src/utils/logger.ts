@@ -2,6 +2,7 @@ import pino from "pino";
 
 const isDevelopment = process.env.NODE_ENV !== "production";
 
+// Congifuracion del logger
 const logger = isDevelopment
     ? pino({
         level: "debug",

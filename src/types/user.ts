@@ -1,5 +1,5 @@
 import { Document, Types } from 'mongoose';
-import { CreateUserDto } from '../DTO/userDto.js';
+import { CreateUserDto } from '../dto/user.dto.js';
 
 export type UserRole = 'user' | 'waiter' | 'chef' | 'admin';
 

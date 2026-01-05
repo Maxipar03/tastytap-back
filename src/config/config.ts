@@ -43,5 +43,4 @@ export default {
     CLOUDINARY_API_SECRET: process.env.CLOUDINARY_API_SECRET!,
     FRONT_ENDPOINT: process.env.FRONT_ENDPOINT!,
     STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY!,
-    REDIS_URL: process.env.REDIS_URL!
 }

@@ -6,7 +6,7 @@ export const compressionConfig = compression({
     // Solo comprimir respuestas mayores a 1KB
     threshold: 1024,
     
-    // Nivel de compresión (1-9, 6 es el balance óptimo)
+    // Nivel de compresión (1-9)
     level: 6,
     
     // Filtro para determinar qué comprimir

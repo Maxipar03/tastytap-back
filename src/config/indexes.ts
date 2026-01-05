@@ -1,16 +1,15 @@
-import { OrderModel } from "../daos/mongodb/models/orderModel.js";
-import { FoodModel } from "../daos/mongodb/models/foodModel.js";
-import { UserModel } from "../daos/mongodb/models/userModel.js";
-import { TableModel } from "../daos/mongodb/models/tableModel.js";
-import { TableSessionModel } from "../daos/mongodb/models/tableSessionModel.js";
-import { RestaurantModel } from "../daos/mongodb/models/restaurantModel.js";
-import { CategoryModel } from "../daos/mongodb/models/categoryModel.js";
+import { OrderModel } from "../dao/mongodb/models/order.model.js";
+import { FoodModel } from "../dao/mongodb/models/food.model.js";
+import { UserModel } from "../dao/mongodb/models/user.model.js";
+import { TableModel } from "../dao/mongodb/models/table.model.js";
+import { TableSessionModel } from "../dao/mongodb/models/table-session.model.js";
+import { RestaurantModel } from "../dao/mongodb/models/restaurant.model.js";
+import { CategoryModel } from "../dao/mongodb/models/category.model.js";
 
 export const createIndexes = async (): Promise<void> => {
     try {
         // ORDERS - Queries frecuentes por restaurant, status, fechas, waiter
-        await OrderModel.collection.createIndex({ restaurant: 1, createdAt: -1 });
-        await OrderModel.collection.createIndex({ restaurant: 1, status: 1 });
+        await OrderModel.collection.createIndex({ restaurant: 1, status: 1, createdAt: -1 });
         await OrderModel.collection.createIndex({ restaurant: 1, waiterId: 1 });
         await OrderModel.collection.createIndex({ clientId: 1 });
         await OrderModel.collection.createIndex({ tableId: 1 });

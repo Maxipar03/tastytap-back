@@ -2,8 +2,9 @@ import * as Sentry from "@sentry/node";
 import { initSentry } from "./config/sentry.js";
 import express, { Express, json, urlencoded, Request, Response, NextFunction } from "express";
 import { initSocketIO } from "./config/socket.js";
+import { initSocketListeners } from "./events/socket.listeners.js";
 import path from "path";
-import { errorHandler } from "./middleware/errorHandler.js";
+import { errorHandler } from "./middleware/error-handler.js";
 import config from "./config/config.js";
 import { initMongoDB } from "./config/db.js";
 import { connectRedis } from "./config/redis.js";
@@ -11,20 +12,19 @@ import apiRouter from "./routes/index.js";
 import passport from "passport";
 import session from "express-session";
 import cookieParser from "cookie-parser";
-import { httpLogger } from "./middleware/httpLogger.js";
+import { httpLogger } from "./middleware/http-logger.js";
 import cors from "cors";
 import helmet from "helmet";
 import dotenv from "dotenv";
 import logger from "./utils/logger.js";
-import { setupProcessLogging } from "./utils/processLogger.js";
-import { rateLimitMiddleware } from "./middleware/rateLimiter.js";
+import { setupProcessLogging } from "./utils/process-logger.js";
+import { rateLimitMiddleware } from "./middleware/rate-limiter.js";
 import { compressionConfig } from "./config/compression.js";
-import { mongoSanitizeMiddleware } from "./middleware/mongoSanitize.js";
-import { sentryContextMiddleware } from "./middleware/sentryContext.js";
-import { setupAllAlerts } from "./utils/alertsConfig.js";
-import "./config/passport/googleStrategy.js";
+import { mongoSanitizeMiddleware } from "./middleware/mongo-sanitize.js";
+import { sentryContextMiddleware } from "./middleware/sentry-context.js";
+import { setupAllAlerts } from "./utils/alerts-config.js";
+import "./config/passport/google-strategy.js";
 import { } from "rate-limiter-flexible";
-import { appendFile } from "fs/promises";
 
 initSentry();
 
@@ -56,9 +56,6 @@ app.use(helmet({
     },
     crossOriginEmbedderPolicy: false // Permite embeds de Google OAuth
 }));
-
-// Webhook de Stripe ANTES del middleware json() - CRÍTICO para verificación de firma
-appendFile
 
 // Middlewares
 app
@@ -142,3 +139,6 @@ const httpServer = app.listen(port, '0.0.0.0', () => {
 
 // Inicia Socket.IO
 initSocketIO(httpServer);
+
+// Inicia los listeners de eventos para Socket.IO
+initSocketListeners();

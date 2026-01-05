@@ -1,12 +1,12 @@
 import { Server, Socket } from "socket.io";
 import { Server as HttpServer } from "http";
-import { ClientToServerEvents, SocketData } from "../types/socket.js";
+import { ClientToServerEvents, ServerToClientEvents, SocketData } from "../types/socket.js";
 
-// La variable 'io' ahora tiene los tipos correctos para los eventos
-let io: Server<ClientToServerEvents, any, SocketData>;
+let io: Server<ClientToServerEvents, ServerToClientEvents, any, SocketData>;
 
+// Inicializa Socket.IO sobre el servidor HTTP existente.
 export const initSocketIO = (httpServer: HttpServer) => {
-  io = new Server<ClientToServerEvents, any, SocketData>(httpServer, {
+  io = new Server<ClientToServerEvents, ServerToClientEvents, any, SocketData>(httpServer, {
     cors: {
             credentials: true,
             origin: function (origin, callback) {
@@ -33,12 +33,10 @@ export const initSocketIO = (httpServer: HttpServer) => {
         }
   });
 
-  io.on("connection", (socket: Socket<ClientToServerEvents, any, SocketData>) => {
-    console.log("Cliente conectado:", socket.id);
+  // Listener principal de nuevas conexiones Socket y manejo de salas
+  io.on("connection", (socket: Socket<ClientToServerEvents, ServerToClientEvents, any, SocketData>) => {
 
     socket.on("join-restaurant", (payload) => {
-
-      console.log(payload)
 
       const { restaurant, role } = payload;
       
@@ -56,7 +54,6 @@ export const initSocketIO = (httpServer: HttpServer) => {
       console.log(`Mozo ${waiterId} unido a su sala personal`);
     });
 
-    // Nuevo: Unirse a notificaciones de una orden específica
     socket.on("join-order", ({ orderId }) => {
       socket.join(`order-${orderId}`);
     });
@@ -69,16 +66,8 @@ export const initSocketIO = (httpServer: HttpServer) => {
   return io;
 };
 
+// Retorna la instancia inicializada de Socket.IO.
 export const getIO = () => {
-  if (!io) {
-    throw new Error("Socket.io no ha sido inicializado");
-  }
-
-  const originalEmit = io.emit;
-  io.emit = function (event, ...args: any[]) {
-    console.log(`[Socket.io] Emitiendo evento: ${String(event)}`, JSON.stringify(args));
-    return originalEmit.apply(this, [event, ...args]);
-  };
-
+  if (!io) throw new Error("Socket.io no ha sido inicializado");
   return io;
 };

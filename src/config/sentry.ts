@@ -2,6 +2,8 @@ import * as Sentry from "@sentry/node";
 import config from "./config";
 import { nodeProfilingIntegration } from "@sentry/profiling-node";
 
+// Configuracion de Sentry con variables de entorno
+
 export const initSentry = () => {
 
   Sentry.init({

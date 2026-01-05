@@ -2,6 +2,8 @@ import { createClient } from 'redis';
 import logger from '../utils/logger';
 import config from './config';
 
+// Configuracion de REDIS con variables de entorno
+
 const client = createClient({
     username: config.REDIS_USERNAME || " ",
     password: config.REDIS_PASSWORD || " ",

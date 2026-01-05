@@ -1,7 +1,7 @@
 import { Document, Types } from "mongoose";
 import { CategoryDB } from "./category.js";
-import { CreateFoodDto } from "../DTO/foodDto.js";
-import { MenuFiltersDto } from "../DTO/menuFiltersDto.js";
+import { CreateFoodDto } from "../dto/food.dto.js";
+import { MenuFiltersDto } from "../dto/menu-filters.dto.js";
 
 export interface FoodOptionValue {
     label: string;

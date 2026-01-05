@@ -1,13 +1,12 @@
 // src/types/order.ts
 import { Document, Types } from "mongoose";
-import mongoosePaginate from "mongoose-paginate-v2";
-import { CreateOrderDto } from "../DTO/orderDto.js";
+import { CreateOrderDto } from "../dto/order.dto.js";
 
 export type ItemStatus = "awaiting_payment" | "pending" | "preparing" | "ready" | "delivered" | "cancelled" | "cashed";
 
-export type OrderStatus = ItemStatus;
+export type OrderStatus = "open" | "awaiting_payment" | "paid" | "cancelled";
 
-export type PaymentMethod = "cash" | "card" | "mobile";
+export type PaymentMethod = "cash" | "card" ;
 
 export interface OrderFilters {
     status?: string;
@@ -73,7 +72,7 @@ export interface OrderDB extends Document {
 export interface OrderDao {
     create: (body: CreateOrderDto, session?: any) => Promise<OrderDB>;
     update: (id: string | Types.ObjectId, body: Partial<OrderDB>, session?: any) => Promise<OrderDB | null>;
-    updateStatusItems: (itemId: string | Types.ObjectId, orderId: string | Types.ObjectId, status: OrderStatus, deletionReason?: string) => Promise<OrderDB | null>;
+    updateStatusItems: (orderId: string | Types.ObjectId, itemId: string | Types.ObjectId, status: ItemStatus, deletionReason?: string) => Promise<OrderDB | null>;
     addItemsToOrder: (orderId: string | Types.ObjectId, items: OrderItem[], session?: any) => Promise<OrderDB | null>;
     getByRestaurantId: (restaurant: string | Types.ObjectId, filters: OrderFilters) => Promise<any>;
     getById: (id: string | Types.ObjectId, populate?: boolean) => Promise<OrderDB | null>;
@@ -88,7 +87,7 @@ export interface CreateOrderResponse {
 export interface OrderService {
     create(orderData: CreateOrderDto): Promise<CreateOrderResponse>;
     updateStatusOrder(id: string | Types.ObjectId, orderData: Partial<OrderDB>, restaurant: string | Types.ObjectId): Promise<OrderDB | null>;
-    updateStatusItems(itemId: string | Types.ObjectId, orderId: string | Types.ObjectId, status: OrderStatus, deletionReason?: string): Promise<OrderDB | null>;
+    updateStatusItems(orderId: string | Types.ObjectId, itemId: string | Types.ObjectId, status: ItemStatus, deletionReason?: string): Promise<OrderDB | null>;
     addItemsToOrder(orderId: string | Types.ObjectId, items: OrderItem[]): Promise<OrderDB | null>;
     getByRestaurantId(restaurant: string | Types.ObjectId, filters: OrderFilters): Promise<any>;
     getById: (id: string | Types.ObjectId, populate?: boolean) => Promise<OrderDB | null>;

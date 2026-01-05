@@ -1,14 +1,14 @@
 import { Router } from "express";
-import accesRouter from "./accesRouter.js";
-import foodRouter from "./foodRouter.js";
-import categoryRouter from "./categoryRouter.js";
-import userRouter from "./userRouter.js";
-import tableRouter from "./tableRouter.js";
-import orderRouter from "./orderRouter.js";
-import tableSessionRouter from "./tableSessionRouter.js";
-import restaurantRouter from "./restaurantRouter.js";
-import stripeRouter from "./stripeRouter.js";
-import dashboardRouter from "./dashboardRouter.js";
+import accesRouter from "./access.routes.js";
+import foodRouter from "./food.routes.js";
+import categoryRouter from "./category.routes.js";
+import userRouter from "./user.routes.js";
+import tableRouter from "./table.routes.js";
+import orderRouter from "./order.routes.js";
+import tableSessionRouter from "./table-session.routes.js";
+import restaurantRouter from "./restaurant.routes.js";
+import stripeRouter from "./stripe.routes.js";
+import dashboardRouter from "./dashboard.routes.js";
 
 const router = Router();
 
