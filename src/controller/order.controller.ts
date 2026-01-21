@@ -7,8 +7,8 @@ import { httpResponse } from "../utils/http-response.js";
 import { prepareOrderData } from "../utils/orders.js";
 import { clearCookieAccess, clearCookieOrder, setCookieOrder } from "../utils/cookies.js";
 import logger from "../utils/logger.js";
+import { sendReceiptEmail } from "../utils/email.js";
 import { CreateOrderBodyDto, UpdateOrderStatusDto, UpdateItemStatusDto, CreateManualOrderDto } from "../dto/order.dto.js";
-import { PaymentMethod } from "../types/order.js";
 
 class OrderController {
 
@@ -32,6 +32,7 @@ class OrderController {
             };
             logger.info(logContext, "Iniciando creación de orden");
 
+            if (!user && !body.guestName && !orderId) throw new BadRequestError("Datos de usuario no encontrados");
             if (tableData) await this.service.validateTableForOrder(tableData.tableId);
 
             let orderData = prepareOrderData({ 
@@ -72,6 +73,28 @@ class OrderController {
             const response = await this.service.selectPayMethod(idOrder, paymentMethod);
             return httpResponse.Ok(res, response);
         } catch (error) {
+            next(error);
+        }
+    }
+
+    sendReceipt = async(req:Request, res:Response, next: NextFunction) => {
+        try{
+            const orderId = req.orderId;
+            const user = req.user;
+            const { email } = req.body;
+
+            if (!orderId) throw new NotFoundError("Datos de orden no encontrados");
+            if (!user && !email) throw new BadRequestError("Email requerido");
+
+            const order = await this.service.getById(orderId);
+            if (!order) throw new NotFoundError("Orden no encontrada");
+
+            const recipientEmail = email || user?.email;
+            if (!recipientEmail) throw new BadRequestError("Email no disponible");
+
+            await sendReceiptEmail(recipientEmail, order);
+            return httpResponse.Ok(res, { message: "Recibo enviado exitosamente" });
+        }catch(error){
             next(error);
         }
     }

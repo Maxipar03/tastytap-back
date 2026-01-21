@@ -5,4 +5,5 @@ export interface CreateRestaurantDto {
     email?: string;
     description: string;
     numberTables: number;
+    logo: string;
 }

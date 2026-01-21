@@ -11,16 +11,22 @@ const router = Router();
 const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
 
+// Creacion de comidas 
 router.post("/", verifyTokenUser, validateJoi(validateCreateFood, "body"), checkRole("admin"), upload.single('image'), foodController.create);
 
+// Obtencion de comidas (usuario)
 router.get("/", verifyTokenAccess, validateJoi(validateMenuFilters, "query"),  foodController.getAllMenu);
 
+// Obtencion de comidas (admin)
 router.get("/admin", verifyTokenUser, checkRole(["waiter", "admin"]), foodController.getAllAdmin);
 
-router.get("/:id",validateJoi(validateParamsFoodId, "params"), foodController.getById);
+// Obtencion de comida por id
+router.get("/:id", validateJoi(validateParamsFoodId, "params"), foodController.getById);
 
+// Actualizacion de comida
 router.put("/:id", verifyTokenUser, checkRole("admin"), validateJoi(validateParamsFoodId, "params"), validateJoi(validateUpdateFood, "body"), upload.single('image'), foodController.update);
 
+// Eliminacion de comida
 router.delete("/:id", verifyTokenUser, checkRole("admin"), validateJoi(validateParamsFoodId, "params"), foodController.delete);
 
 export default router

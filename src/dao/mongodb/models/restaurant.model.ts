@@ -32,6 +32,11 @@ const restaurantSchema = new Schema<RestaurantDB>({
         default: "",
         trim: true
     },
+    stripeStatus: {
+        type: String,
+        enum: ["pending", "active", "inactive"],
+        default: "pending"
+    },
     rating: {
         type: Number,
         min: 0,

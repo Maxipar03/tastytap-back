@@ -17,6 +17,14 @@ class UserMongoDao extends MongoDao<UserDB, CreateUserDto> {
             throw error;
         }
     }
+
+    getByRestaurant = async (restaurantId: string): Promise<UserDB[]> => {
+        try {
+            return await this.model.find({ restaurant: restaurantId }).lean();
+        } catch (error) {
+            throw error;
+        }
+    }
 }
 
 export const userMongoDao = new UserMongoDao(UserModel)

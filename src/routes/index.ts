@@ -9,12 +9,14 @@ import tableSessionRouter from "./table-session.routes.js";
 import restaurantRouter from "./restaurant.routes.js";
 import stripeRouter from "./stripe.routes.js";
 import dashboardRouter from "./dashboard.routes.js";
+import restaurantInvitationRouter from "./restaurant-invitation.routes.js";
 
 const router = Router();
 
 router.use("/checkout", stripeRouter);
 router.use("/users", userRouter);
-router.use("/restaurants", restaurantRouter);
+router.use("/restaurant", restaurantRouter);
+router.use("/onboarding", restaurantInvitationRouter);
 router.use("/tableSession", tableSessionRouter);
 router.use("/categories", categoryRouter);
 router.use("/order", orderRouter);

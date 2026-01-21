@@ -7,8 +7,10 @@ import { verifyTokenUser } from "../middleware/check-token.js";
 
 const router = Router();
 
+// Obtener mesas por restaurante
 router.get("/", verifyTokenUser, checkRole(["waiter", "admin"]), tableController.getByRestaurat);
 
+// Actualizacion de mesa
 router.put("/update/:tableId", verifyTokenUser, checkRole(["waiter", "admin"]), validateJoi(validateUpdateTable, "body"), validateJoi(validateTableObjectId, "params"), tableController.updateTable);
 
 export default router

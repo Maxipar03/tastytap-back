@@ -8,14 +8,19 @@ import { verifyTokenAccess } from "../middleware/check-token.js";
 
 const router = Router();
 
-router.get("/", verifyTokenUser, categoryController.categoryByRestaurant);
+// Obtener categorias (admin)
+router.get("/", verifyTokenUser, checkRole("admin"), categoryController.categoryByRestaurant);
 
+// Crear categoria
 router.post("/", verifyTokenUser , checkRole("admin"), validateJoi(createCategorySchema, "body") ,categoryController.create);
 
+// Actualizar categoria
 router.put("/:id", verifyTokenUser, checkRole("admin"), validateJoi(updateCategoryParamsSchema, "params"), validateJoi(updateCategorySchema, "body"), categoryController.update);
 
+// Eliminar categoria 
 router.delete("/:id", verifyTokenUser , checkRole("admin"), validateJoi(deleteCategorySchema, "params"), categoryController.delete);
 
+// Eliminar categoria (usuario)
 router.get("/menu", verifyTokenAccess, categoryController.getByRestaurant);
 
 export default router;

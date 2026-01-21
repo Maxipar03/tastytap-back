@@ -26,6 +26,7 @@ const foodOptionSchema = Joi.object({
         'any.required': 'La opción debe contener valores.',
         'array.base': 'Los valores de la opción deben ser un arreglo.'
     }),
+    required: commonValidations.boolean.optional()
 });
 
 export const validateMenuFilters = Joi.object({
@@ -65,9 +66,6 @@ export const validateCreateFood = Joi.object({
         'any.required': 'La categoría es obligatoria.'
     }),
     options: Joi.array().items(foodOptionSchema).optional(),
-    available: commonValidations.boolean.required().messages({
-        'any.required': 'El campo "disponible" es obligatorio.'
-    }),
     stock: commonValidations.nonNegativeInteger.required().messages({
         'any.required': 'El stock es obligatorio.'
     }),
@@ -83,13 +81,6 @@ export const validateCreateFood = Joi.object({
     }),
     isGlutenFree: commonValidations.boolean.required().messages({
         'any.required': 'El campo "sin gluten" es obligatorio.'
-    }),
-    spicyLevel: Joi.number().integer().min(0).max(5).required().messages({
-        'any.required': 'El nivel de picante es obligatorio.',
-        'number.base': 'El nivel de picante debe ser un número.',
-        'number.integer': 'El nivel de picante debe ser un número entero.',
-        'number.min': 'El nivel de picante no puede ser menor a 0.',
-        'number.max': 'El nivel de picante no puede ser mayor a 5.'
     }),
     image: Joi.string().optional().messages({
         'string.base': 'La imagen debe ser una URL válida.'

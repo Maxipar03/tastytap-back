@@ -3,8 +3,8 @@ import { orderService } from "./order.service.js";
 import { restaurnatService } from "./restaurant.service.js";
 import { NotFoundError, CustomError } from "../utils/custom-error.js";
 import logger from "../utils/logger.js";
-import { Types } from "mongoose";
 import * as Sentry from "@sentry/node";
+import Stripe from "stripe";
 import { withTransaction } from "../utils/transaction-manager.js";
 
 export default class StripeService {
@@ -21,7 +21,7 @@ export default class StripeService {
 
             // Obtener la orden por ID
             const order = await orderService.getById(orderId);
-            
+
             if (!order) {
                 logger.error({ orderId }, "Orden no encontrada para payment intent");
                 throw new NotFoundError("No se encontró la orden");
@@ -98,138 +98,110 @@ export default class StripeService {
     };
 
     handleWebhook = async (body: Buffer, signature: string) => {
-        Sentry.addBreadcrumb({
-            category: "webhook",
-            message: "Stripe webhook received",
-            data: { signatureLength: signature.length }
-        });
-
         logger.info("Webhook recibido de Stripe");
 
+        const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
+        if (!endpointSecret) {
+            throw new CustomError("Webhook secret no configurado", 500);
+        }
+
+        let event: Stripe.Event;
+
         try {
-            const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
+            event = stripe.webhooks.constructEvent(body, signature, endpointSecret);
+        } catch (err: any) {
+            logger.error({ error: err.message }, "Error en verificación de firma del webhook");
+            throw new CustomError(`Webhook signature verification failed: ${err.message}`, 400);
+        }
 
-            if (!endpointSecret) {
-                Sentry.captureMessage("Webhook secret no configurado en variables de entorno", "error");
-                throw new CustomError("Webhook secret no configurado", 500);
-            }
+        logger.info({
+            eventType: event.type,
+            eventId: event.id
+        }, "Evento Stripe recibido");
 
-            let event;
-            try {
-                event = stripe.webhooks.constructEvent(body, signature, endpointSecret);
-            } catch (err: any) {
-                logger.error({ error: err.message }, "Error en verificación de firma del webhook");
-                throw new CustomError(`Webhook signature verification failed: ${err.message}`, 400);
-            }
+        switch (event.type) {
 
-            Sentry.addBreadcrumb({
-                category: "webhook",
-                message: "Stripe event processed",
-                data: { eventType: event.type, eventId: event.id }
-            });
-
-            logger.info({
-                eventType: event.type,
-                eventId: event.id,
-                eventData: JSON.stringify(event.data.object).substring(0, 500)
-            }, "Procesando evento de Stripe");
-
-            // Solo procesar payment_intent.succeeded (ignorar charge.* para evitar duplicados)
-            if (event.type === 'payment_intent.succeeded') {
-                logger.info({ eventId: event.id }, "Evento payment_intent.succeeded detectado");
-                const paymentIntent = event.data.object as any;
-                const rawOrderId = paymentIntent.metadata.orderId;
-                const paymentIntentId = paymentIntent.id;
-                const amount = paymentIntent.amount;
-
-                // Limpiar y validar orderId
-                const orderId = rawOrderId?.trim();
-
-                logger.info({
-                    paymentIntentId,
-                    orderId,
-                    amount
-                }, "Pago exitoso - actualizando orden");
+            // 💳 PAGOS (YA EXISTENTE)
+            case "payment_intent.succeeded": {
+                const paymentIntent = event.data.object as Stripe.PaymentIntent;
+                const orderId = paymentIntent.metadata?.orderId?.trim();
 
                 if (!orderId) {
-                    logger.error({ paymentIntentId }, "OrderId no encontrado en metadata del payment intent");
-                    Sentry.captureMessage("Webhook: OrderId faltante", {
-                        level: "error",
-                        extra: { paymentIntentId }
-                    });
+                    logger.error({ paymentIntentId: paymentIntent.id }, "OrderId faltante en metadata");
                     return;
                 }
 
-                // Implementar retry logic para WriteConflict
                 const maxRetries = 3;
                 let attempt = 0;
-                let success = false;
 
-                while (attempt < maxRetries && !success) {
+                while (attempt < maxRetries) {
                     attempt++;
 
                     try {
                         await withTransaction(async (session) => {
                             const order = await orderService.getById(orderId);
-                            if (!order) {
-                                logger.error({ orderId, paymentIntentId }, "Orden no encontrada para webhook");
-                                Sentry.captureMessage("Webhook: Orden no encontrada", {
-                                    level: "error",
-                                    extra: { orderId, paymentIntentId }
-                                });
-                                return;
-                            }
+                            if (!order || order.status === "paid") return;
 
-                            // Verificar si ya está cobrada (evitar duplicados)
-                            if (order.status === "paid") {
-                                logger.info({ orderId, paymentIntentId }, "Orden ya marcada como cobrada, ignorando webhook duplicado");
-                                return;
-                            }
-
-                            const restaurantId = order.restaurant.toString();
-
-                            // Actualizar estado de orden
-                            await orderService.updateStatusOrder(orderId, { status: "paid", isPaid: true }, restaurantId, undefined, session);
-
-                            Sentry.captureMessage("Pago completado exitosamente", {
-                                level: "info",
-                                extra: { orderId, paymentIntentId, amount }
-                            });
-
-                            logger.info({
+                            await orderService.updateStatusOrder(
                                 orderId,
-                                paymentIntentId,
-                                restaurantId: order.restaurant,
-                                attempt
-                            }, "Orden marcada como cobrada exitosamente");
+                                { status: "paid", isPaid: true },
+                                order.restaurant.toString(),
+                                undefined,
+                                session
+                            );
+
+                            logger.info({ orderId }, "Orden marcada como pagada");
                         });
 
-                        success = true;
+                        break;
                     } catch (error: any) {
-                        // Retry solo en WriteConflict
-                        if (error.code === 112 && attempt < maxRetries) {
-                            logger.warn({ orderId, paymentIntentId, attempt }, "WriteConflict detectado, reintentando...");
-                            await new Promise(resolve => setTimeout(resolve, 100 * attempt)); // Backoff exponencial
-                        } else {
-                            logger.error({ error, orderId, paymentIntentId, attempt }, "Error en transacción de pago - rollback ejecutado");
+                        if (error.code !== 112 || attempt >= maxRetries) {
                             throw error;
                         }
+                        await new Promise(r => setTimeout(r, 100 * attempt));
                     }
                 }
 
-                if (!success) {
-                    logger.error({ orderId, paymentIntentId, attempts: maxRetries }, "No se pudo actualizar la orden después de múltiples intentos");
-                }
-            } else {
-                logger.debug({
-                    eventType: event.type,
-                    eventId: event.id
-                }, "Evento de Stripe no procesado - tipo no manejado");
+                break;
             }
 
-        } catch (error) {
-            logger.error({ error: error }, "Error procesando webhook de Stripe");
-            throw error;
+            // 🏦 STRIPE CONNECT – ONBOARDING (NUEVO)
+            case "account.updated": {
+                const account = event.data.object as Stripe.Account;
+
+                console.log(account)
+
+                const completed =
+                    account.details_submitted &&
+                    account.charges_enabled &&
+                    account.payouts_enabled;
+
+                console.log("account.details_submitted:", account.details_submitted, "account.charges_enabled:", account.charges_enabled, "account.payouts_enabled;", account.payouts_enabled)
+
+                logger.info({
+                    stripeAccountId: account.id,
+                    completed,
+                    charges_enabled: account.charges_enabled,
+                    payouts_enabled: account.payouts_enabled
+                }, "Actualización de cuenta Stripe");
+
+                if (completed) {
+                    await restaurnatService.updateByStripeAccountId(account.id, {
+                        stripeStatus: "active"
+                    });
+
+                    logger.info({
+                        stripeAccountId: account.id
+                    }, "Stripe onboarding completado automáticamente");
+                }
+
+                break;
+            }
+
+            default:
+                logger.debug({
+                    eventType: event.type
+                }, "Evento Stripe ignorado");
         }
     };
 }

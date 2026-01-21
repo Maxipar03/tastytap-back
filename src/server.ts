@@ -82,6 +82,7 @@ app
                     "https://tastytap.net",
                     "https://www.tastytap.net",
                     "http://localhost:3000",
+                    "http://localhost:3001",
                     "http://localhost:5173",
                     "https://localhost:3000",
                     "https://localhost:5173"

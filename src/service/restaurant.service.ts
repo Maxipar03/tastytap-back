@@ -1,11 +1,14 @@
 import { restaurantMongoDao } from "../dao/mongodb/restaurant.dao.js";
 import { RestaurantDao, RestaurantDB, CreateRestaurantResponse } from "../types/restaurant.js";
 import { CreateRestaurantDto } from "../dto/restaurant.dto.js";
+import { uploadToCloudinary } from "../utils/cloudinary.js";
 import { TableModel } from "../dao/mongodb/models/table.model.js";
 import config from "../config/config.js";
 import stripe from "../config/stripe.js";
 import cache from "../utils/cache.js";
 import { CACHE_TTL, CACHE_KEYS } from "../constants/business.js";
+import { userMongoDao } from "../dao/mongodb/user.dao.js";
+import { Types } from "mongoose";
 
 export default class RestaurantService {
     private dao: RestaurantDao;
@@ -25,13 +28,12 @@ export default class RestaurantService {
         await TableModel.insertMany(tables);
     };
 
-    create = async (body: CreateRestaurantDto): Promise<CreateRestaurantResponse> => {
+    create = async (body: CreateRestaurantDto & { logo?: Express.Multer.File }, userId: Types.ObjectId, email: string): Promise<CreateRestaurantResponse> => {
         try {
-            // 1️⃣ Crear la cuenta conectada de Stripe
             const account = await stripe.accounts.create({
                 type: "express",
-                country: "US", // o el país donde operan
-                ...(body.email ? { email: body.email } : {}),// opcional
+                country: "US",
+                ...(body.email ? { email: body.email } : {}),
                 business_type: "company",
                 capabilities: {
                     transfers: { requested: true },
@@ -39,25 +41,28 @@ export default class RestaurantService {
                 },
             });
 
-            // 2️⃣ Crear el restaurante en MongoDB (agregando el account.id de Stripe)
-            const restaurantData = { ...body, stripeAccountId: account.id };
+            let imageUrl: string | undefined;
+            if (body.logo) imageUrl = await uploadToCloudinary(body.logo);
+
+            const restaurantData = { 
+                ...body,
+                email: email, 
+                ...(imageUrl && { logo: imageUrl }), 
+                stripeAccountId: account.id 
+            };
             const restaurant = await this.dao.create(restaurantData);
 
-            // 3️⃣ Crear el enlace de onboarding de Stripe
             const accountLink = await stripe.accountLinks.create({
                 account: account.id,
                 refresh_url: `${config.FRONT_ENDPOINT}/onboarding/refresh`,
                 return_url: `${config.FRONT_ENDPOINT}/dashboard`,
                 type: "account_onboarding",
             });
-
-            // 4️⃣ Crear las mesas del restaurante
+            
             await this.createTables(restaurant._id.toString(), body.numberTables);
-
-            // 5️⃣ Invalidar caché
+            await userMongoDao.update(userId.toString(), {role: "admin", restaurant: restaurant._id});
             await cache.del(CACHE_KEYS.restaurants());
 
-            // 6️⃣ Devolver el restaurante creado y el enlace de onboarding
             return { _id: restaurant._id, restaurant, onboardingUrl: accountLink.url };
 
         } catch (error: any) {
@@ -86,8 +91,16 @@ export default class RestaurantService {
         return restaurant;
     };
 
-    update = async (id: string, body: Partial<RestaurantDB>): Promise<RestaurantDB | null> => {
-        const result = await this.dao.update(id, body);
+    update = async (id: string, body: Partial<RestaurantDB & { file?: Express.Multer.File }>): Promise<RestaurantDB | null> => {
+        let imageUrl: string | undefined;
+        if (body.file) imageUrl = await uploadToCloudinary(body.file);
+
+        const updateData = {
+            ...body,
+            ...(imageUrl && { logo: imageUrl })
+        };
+
+        const result = await this.dao.update(id, updateData);
         await cache.del(CACHE_KEYS.restaurant(id));
         await cache.del(CACHE_KEYS.restaurants());
         return result;
@@ -98,6 +111,30 @@ export default class RestaurantService {
         await cache.del(CACHE_KEYS.restaurant(id));
         await cache.del(CACHE_KEYS.restaurants());
         return result;
+    };
+
+    updateByStripeAccountId = async (stripeAccountId: string, data: Partial<RestaurantDB>): Promise<RestaurantDB | null> => {
+        const restaurant = await this.dao.getByFilter({ stripeAccountId });
+        if (!restaurant) return null;
+        
+        const result = await this.dao.update(restaurant._id.toString(), data);
+        await cache.del(CACHE_KEYS.restaurant(restaurant._id.toString()));
+        await cache.del(CACHE_KEYS.restaurants());
+        return result;
+    };
+
+    createOnboarding = async (restaurantId: string): Promise<{ url: string }> => {
+        const restaurant = await this.dao.getById(restaurantId);
+        if (!restaurant?.stripeAccountId) throw new Error("Cuenta de Stripe no encontrada");
+
+        const accountLink = await stripe.accountLinks.create({
+            account: restaurant.stripeAccountId,
+            refresh_url: `${config.FRONT_ENDPOINT}/onboarding/refresh`,
+            return_url: `${config.FRONT_ENDPOINT}/dashboard`,
+            type: "account_onboarding",
+        });
+
+        return { url: accountLink.url };
     };
 
 }

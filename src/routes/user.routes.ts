@@ -8,12 +8,16 @@ import { authRateLimitMiddleware } from "../middleware/rate-limiter.js";
 
 const router = Router();
 
+// Registro de usuario
 router.post("/register", authRateLimitMiddleware, validateJoi(registerUserSchema, "body"), userController.register);
 
+// Inicio de usuario
 router.post("/login", authRateLimitMiddleware, validateJoi(loginUserSchema, "body"), userController.login);
 
+// Deslogeo de usuario
 router.post("/logout", userController.logout);
 
+// Obtencion de usuario
 router.get("/me", verifyTokenUser, userController.getUser);
 
 router.get(

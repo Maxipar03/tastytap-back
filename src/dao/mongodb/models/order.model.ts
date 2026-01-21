@@ -102,6 +102,10 @@ const orderSchema = new Schema<OrderDB>({
         ref: "tableSession",
         required: false,
     },
+    receipt: {
+        type: Boolean,
+        default: false
+    },
     clientId: {
         type: Schema.Types.ObjectId,
         ref: "user",

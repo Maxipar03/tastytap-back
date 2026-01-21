@@ -9,6 +9,7 @@ export interface RestaurantDB extends Document {
     email?: string;
     description: string;
     rating: number;
+    stripeStatus: string,
     menu: Types.ObjectId[];
     numberTables: number;
     logo?: string;
@@ -21,6 +22,7 @@ export interface RestaurantDao {
     create: (body: CreateRestaurantDto) => Promise<RestaurantDB>;
     getAll: () => Promise<RestaurantDB[]>;
     getById: (id: string) => Promise<RestaurantDB | null>;
+    getByFilter: (filter: Partial<RestaurantDB>) => Promise<RestaurantDB | null>;
     update: (id: string, body: Partial<RestaurantDB>) => Promise<RestaurantDB | null>;
     delete: (id: string) => Promise<RestaurantDB | null>;
 }

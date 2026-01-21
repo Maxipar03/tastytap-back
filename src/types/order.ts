@@ -52,6 +52,7 @@ export interface OrderDB extends Document {
     _id: Types.ObjectId;
     items: OrderItem[];
     tableId?: Types.ObjectId;
+    receipt: boolean;
     activeSession?: Types.ObjectId;
     restaurant: Types.ObjectId;
     waiterId?: Types.ObjectId;

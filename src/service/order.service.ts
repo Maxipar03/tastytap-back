@@ -206,7 +206,7 @@ export default class OrderService {
                     item.status === "delivered" || item.status === "cancelled"
                 );
                 if (allDelivered && updatedOrder.status === "open") {
-                    await this.repository.update(orderId.toString(), { status: "awaiting_payment" } as any);
+                    await this.updateStatusOrder(orderId.toString(), { status: "awaiting_payment" } ,currentOrder.restaurant,);
                     updatedOrder.status = "awaiting_payment";
                 }
             }

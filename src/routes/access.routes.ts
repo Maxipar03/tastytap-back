@@ -8,14 +8,19 @@ import { validateJoi } from "../middleware/validate-joi.js";
 
 const router = Router();
 
+// Generacion QR mesa
 router.post("/table-qr", verifyTokenUser , validateJoi(generateQRSchema, "body"), checkRole(["waiter", "admin"]), accessController.generateQRtable);
 
+// Generacion QR llevar
 router.post("/togo-qr", verifyTokenUser, checkRole(["waiter", "admin"]), accessController.generateQRtoGo );
 
+// Validar token mesa
 router.get("/table/qr/:token", validateJoi(validateTokenSchema, "params"), accessController.validateTokenTable);
 
+// Validar token llevar
 router.get("/togo/qr/:token", validateJoi(validateTokenSchema, "params"), accessController.validateTokenToGo);
 
+// Validar accesso
 router.get("/validate", verifyTokenAccess, accessController.validate);
 
 export default router;

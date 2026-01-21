@@ -77,4 +77,17 @@ export default class MongoDao<T, C> {
             throw error
         }
     };
+
+    getByFilter = async (filter: Partial<T>): Promise<T | null> => {
+        try {
+            Sentry.addBreadcrumb({
+                category: 'database',
+                message: 'Executing getByFilter query',
+                data: { collection: this.model.collection.name, filter }
+            });
+            return (await this.model.findOne(filter as any).lean()) as T | null;
+        } catch (error) {
+            throw error
+        }
+    };
 }

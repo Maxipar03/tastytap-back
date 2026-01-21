@@ -26,6 +26,10 @@ class UserServices {
 
     getByEmail = async (email: string): Promise<UserDB | null> => this.dao.getByEmail(email);
 
+    getByRestaurant = async (restaurantId: string): Promise<UserDB[]> => {
+        return await userMongoDao.getByRestaurant(restaurantId);
+    };
+
     login = async (email:string, password:string): Promise<UserDB> => {
         try {
             logger.debug({ email }, "Buscando usuario para login");
