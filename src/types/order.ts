@@ -6,7 +6,7 @@ export type ItemStatus = "awaiting_payment" | "pending" | "preparing" | "ready" 
 
 export type OrderStatus = "open" | "awaiting_payment" | "paid" | "cancelled";
 
-export type PaymentMethod = "cash" | "card" ;
+export type PaymentMethod = "cash" | "card";
 
 export interface OrderFilters {
     status?: string;
@@ -36,7 +36,7 @@ export interface OrderItem {
     foodName: string;
     quantity: number;
     price: number;
-    options: OrderItemOption[];
+    options?: OrderItemOption[];
     notes?: string;
     status: ItemStatus;
     deletionReason?: string;
@@ -86,8 +86,10 @@ export interface CreateOrderResponse {
 }
 
 export interface OrderService {
-    create(orderData: CreateOrderDto): Promise<CreateOrderResponse>;
-    updateStatusOrder(id: string | Types.ObjectId, orderData: Partial<OrderDB>, restaurant: string | Types.ObjectId): Promise<OrderDB | null>;
+    create(orderData: CreateOrderDto, orderId: string): Promise<CreateOrderResponse>;
+    validateTableForOrder(tableId: Types.ObjectId): Promise<void>;
+    selectPayMethod(idOrder: string | Types.ObjectId, paymentMethod: PaymentMethod): Promise<OrderDB | null>;
+    updateStatusOrder(id: string | Types.ObjectId, orderData: Partial<OrderDB>, restaurant: string | Types.ObjectId, waiterId?: string | Types.ObjectId): Promise<OrderDB | null>;
     updateStatusItems(orderId: string | Types.ObjectId, itemId: string | Types.ObjectId, status: ItemStatus, deletionReason?: string): Promise<OrderDB | null>;
     addItemsToOrder(orderId: string | Types.ObjectId, items: OrderItem[]): Promise<OrderDB | null>;
     getByRestaurantId(restaurant: string | Types.ObjectId, filters: OrderFilters): Promise<any>;

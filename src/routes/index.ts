@@ -8,7 +8,9 @@ import orderRouter from "./order.routes.js";
 import tableSessionRouter from "./table-session.routes.js";
 import restaurantRouter from "./restaurant.routes.js";
 import stripeRouter from "./stripe.routes.js";
+import restaurantRequestRouter from "./restaurant-request.routes.js"
 import dashboardRouter from "./dashboard.routes.js";
+import userValidationRouter from "./user-validations.routes.js"
 import restaurantInvitationRouter from "./restaurant-invitation.routes.js";
 
 const router = Router();
@@ -17,10 +19,12 @@ router.use("/checkout", stripeRouter);
 router.use("/users", userRouter);
 router.use("/restaurant", restaurantRouter);
 router.use("/onboarding", restaurantInvitationRouter);
-router.use("/tableSession", tableSessionRouter);
+router.use("/table-session", tableSessionRouter);
 router.use("/categories", categoryRouter);
 router.use("/order", orderRouter);
 router.use("/dishes", foodRouter);
+router.use("/user-validation", userValidationRouter)
+router.use("/restaurant-request", restaurantRequestRouter);
 router.use("/tables", tableRouter);
 router.use("/access", accesRouter);
 router.use("/dashboard", dashboardRouter);

@@ -15,6 +15,7 @@ export const initSocketIO = (httpServer: HttpServer) => {
                 const allowedOrigins = [
                     "https://tastytap.net",
                     "https://www.tastytap.net",
+                    "https://panel.tastytap.net",
                     "https://tastytap-panel.vercel.app",
                     "http://localhost:3000",
                     "http://localhost:3001",

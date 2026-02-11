@@ -29,4 +29,4 @@ const tableSessionSchema = new Schema<TableSessionDB>({
     timestamps: true
 })
 
-export const TableSessionModel = model<TableSessionDB>("tableSession", tableSessionSchema);
+export const TableSessionModel = model <TableSessionDB>("tableSession", tableSessionSchema);

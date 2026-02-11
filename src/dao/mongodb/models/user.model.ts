@@ -14,6 +14,10 @@ const UserSchema = new Schema <UserDB> ({
         trim: true,
         lowercase: true
     },
+    isValidateMail: {
+        type: Boolean,
+        default: false
+    },
     password: {
         type: String,
         required: function() {
@@ -26,7 +30,7 @@ const UserSchema = new Schema <UserDB> ({
     },
     role: {
         type: String,
-        enum: ['user', 'waiter', 'chef', 'admin'],
+        enum: ['user', 'waiter', 'chef', 'admin', 'owner'],
         default: 'user'
     },
     phone: {

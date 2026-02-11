@@ -12,7 +12,7 @@ class TableSessionController {
         this.service = services;
     }
 
-    getActiveSessionsByRestaurant = async (req: Request, res: Response, next: NextFunction): Promise<any> => {
+    getActiveSessionsByRestaurant = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
         try {
             const restaurant = req.user?.restaurant;
             if (!restaurant) throw new UnauthorizedError("No se encontró el restaurante del usuario");
@@ -24,13 +24,13 @@ class TableSessionController {
         }
     };
 
-    createSession = async (req: Request, res: Response, next: NextFunction): Promise<any> => {
+    createSession = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
         try {
             const { tableId } = req.body;
             const restaurant = req.user?.restaurant;
             const waiterId = req.user?.id
             
-            if (!restaurant || !restaurant || !waiterId) throw new UnauthorizedError("Faltan datos para la creacion de la session de mesa");
+            if (!restaurant || !tableId || !waiterId) throw new UnauthorizedError("Faltan datos para la creacion de la session de mesa");
 
             const table = await tableServices.getById(tableId);
             if (!table) throw new BadRequestError("Mesa no encontrada");

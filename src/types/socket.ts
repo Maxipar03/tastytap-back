@@ -1,6 +1,6 @@
 interface JoinRestaurantPayload {
     restaurant: string;
-    role: 'waiter' | 'manager' | 'chef' | 'user';
+    role: 'waiter' | 'manager' | 'chef' | 'user' | 'owner' | 'admin';
 }
 
 interface JoinWaiterPayload {

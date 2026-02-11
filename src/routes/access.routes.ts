@@ -9,10 +9,10 @@ import { validateJoi } from "../middleware/validate-joi.js";
 const router = Router();
 
 // Generacion QR mesa
-router.post("/table-qr", verifyTokenUser , validateJoi(generateQRSchema, "body"), checkRole(["waiter", "admin"]), accessController.generateQRtable);
+router.post("/table-qr", verifyTokenUser , validateJoi(generateQRSchema, "body"), checkRole(["waiter", "admin", "owner"]), accessController.generateQRtable);
 
 // Generacion QR llevar
-router.post("/togo-qr", verifyTokenUser, checkRole(["waiter", "admin"]), accessController.generateQRtoGo );
+router.post("/togo-qr", verifyTokenUser, checkRole(["waiter", "admin", "owner"]), accessController.generateQRtoGo );
 
 // Validar token mesa
 router.get("/table/qr/:token", validateJoi(validateTokenSchema, "params"), accessController.validateTokenTable);

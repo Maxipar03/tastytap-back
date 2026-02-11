@@ -23,6 +23,7 @@ export const createUserPayload = (user: any): Promise<UserPayload & JwtPayload> 
         name: user.name,
         email: user.email,
         role: user.role,
+        isValidateMail: user.isValidateMail,
         restaurant: user.restaurant,
         ...(user.profileImage && { profileImage: user.profileImage })
     };

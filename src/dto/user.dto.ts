@@ -1,6 +1,7 @@
 export interface CreateUserDto {
     name: string;
     email: string;
+    isValidateMail: boolean,
     password?: string | null;
     phone?: string;
     profileImage?: string;

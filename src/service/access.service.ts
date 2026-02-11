@@ -29,13 +29,13 @@ export default class AccessServices {
     };
 
     handleTableAccess = async (payload: QRTablePayload): Promise<QRTablePayload> => {
-        const { restaurant, tableId, waiterId } = payload;
+        const { restaurant, table, waiter } = payload;
 
         const updateData = {
             state: 'occupied' as const,
-            waiterServing: waiterId
+            waiterServing: waiter.id
         };
-        const updatedTable = await tableServices.update(tableId, updateData, restaurant.id);
+        const updatedTable = await tableServices.update(table, updateData, restaurant.id);
 
         if (!updatedTable) throw new NotFoundError("Table not found for update.");
 

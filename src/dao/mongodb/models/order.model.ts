@@ -2,7 +2,7 @@ import { Schema, model } from "mongoose";
 import mongoosePaginate from "mongoose-paginate-v2";
 import { OrderDB, OrderItem, OrderItemOption, OrderItemOptionValue, OrderPricing } from "../../../types/order.js"
 
-const orderItemOptionValueSchema = new Schema<OrderItemOptionValue>({
+const OrderItemOptionValueSchema = new Schema<OrderItemOptionValue>({
     label: {
         type: String,
         required: true,
@@ -15,16 +15,16 @@ const orderItemOptionValueSchema = new Schema<OrderItemOptionValue>({
     },
 });
 
-const orderItemOptionSchema = new Schema<OrderItemOption>({
+const OrderItemOptionSchema = new Schema<OrderItemOption>({
     name: {
         type: String,
         required: true,
         trim: true,
     },
-    values: [orderItemOptionValueSchema],
+    values: [OrderItemOptionValueSchema],
 });
 
-const orderItemSchema = new Schema<OrderItem>({
+const OrderItemSchema = new Schema<OrderItem>({
     foodId: {
         type: Schema.Types.ObjectId,
         ref: "food",
@@ -45,7 +45,7 @@ const orderItemSchema = new Schema<OrderItem>({
         required: true,
         min: 0,
     },
-    options: [orderItemOptionSchema],
+    options: [OrderItemOptionSchema],
     notes: {
         type: String,
         trim: true,
@@ -61,15 +61,15 @@ const orderItemSchema = new Schema<OrderItem>({
     },
 });
 
-const orderPricingSchema = new Schema<OrderPricing>({
+const OrderPricingSchema = new Schema<OrderPricing>({
     subtotal: { type: Number, required: true, min: 0 },
     tax: { type: Number, required: true, min: 0 },
     total: { type: Number, required: true, min: 0 },
 });
 
-const orderSchema = new Schema<OrderDB>({
+const OrderSchema = new Schema<OrderDB>({
     items: {
-        type: [orderItemSchema],
+        type: [OrderItemSchema],
         default: []
     },
     tableId: {
@@ -120,7 +120,7 @@ const orderSchema = new Schema<OrderDB>({
         trim: true,
     },
     pricing: {
-        type: orderPricingSchema,
+        type: OrderPricingSchema,
         required: true,
     },
     paymentMethod: {
@@ -143,6 +143,6 @@ const orderSchema = new Schema<OrderDB>({
     timestamps: true,
 });
 
-orderSchema.plugin(mongoosePaginate);
+OrderSchema.plugin(mongoosePaginate);
 
-export const OrderModel = model<OrderDB>("order", orderSchema);
+export const OrderModel = model <OrderDB> ("order", OrderSchema);

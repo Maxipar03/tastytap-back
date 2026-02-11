@@ -18,10 +18,6 @@ const RestaurantInvitationSchema = new Schema<RestaurantInvitationDB>({
         type: String,
         required: true
     },
-    scope: {
-        type: String,
-        required: true
-    },
     used: {
         type: Boolean,
         default: false
@@ -38,4 +34,4 @@ const RestaurantInvitationSchema = new Schema<RestaurantInvitationDB>({
     timestamps: true
 });
 
-export const RestaurantInvitationModel = model<RestaurantInvitationDB>("restaurant_invitation", RestaurantInvitationSchema);
+export const RestaurantInvitationModel = model <RestaurantInvitationDB> ("restaurant_invitation", RestaurantInvitationSchema);

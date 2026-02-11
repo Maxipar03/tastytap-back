@@ -121,7 +121,7 @@ export default class StripeService {
 
         switch (event.type) {
 
-            // 💳 PAGOS (YA EXISTENTE)
+            // 💳 PAGOS
             case "payment_intent.succeeded": {
                 const paymentIntent = event.data.object as Stripe.PaymentIntent;
                 const orderId = paymentIntent.metadata?.orderId?.trim();
@@ -165,7 +165,7 @@ export default class StripeService {
                 break;
             }
 
-            // 🏦 STRIPE CONNECT – ONBOARDING (NUEVO)
+            // 🏦 STRIPE CONNECT – ONBOARDING
             case "account.updated": {
                 const account = event.data.object as Stripe.Account;
 
@@ -175,8 +175,6 @@ export default class StripeService {
                     account.details_submitted &&
                     account.charges_enabled &&
                     account.payouts_enabled;
-
-                console.log("account.details_submitted:", account.details_submitted, "account.charges_enabled:", account.charges_enabled, "account.payouts_enabled;", account.payouts_enabled)
 
                 logger.info({
                     stripeAccountId: account.id,

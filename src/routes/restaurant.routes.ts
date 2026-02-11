@@ -12,18 +12,21 @@ const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
 
 // Obtener resataurante
-router.get("/", verifyTokenUser, checkRole("admin"), restaurantController.getById);
+router.get("/", verifyTokenUser, checkRole(["admin", "owner"]), restaurantController.getById);
+
+// Actualizar resataurante
+router.get("/:id", verifyTokenUser, validateJoi(validateObjectId, "params"),checkRole("owner"), restaurantController.update);
 
 // Obtener usuarios de resaurante
-router.get("/users", verifyTokenUser, checkRole("admin"), restaurantController.getRestaurantUsers);
+router.get("/users", verifyTokenUser, checkRole(["admin", "owner"]), restaurantController.getRestaurantUsers);
 
 // Obtener invitaciones de resaurante
-router.get("/invitations", verifyTokenUser, checkRole("admin"), restaurantController.getRestaurantInvitations);
+router.get("/invitations", verifyTokenUser, checkRole(["admin", "owner"]), restaurantController.getRestaurantInvitations);
 
 // Creacion de setup stripe
-router.get("/create-onboarding", verifyTokenUser, checkRole("admin"), restaurantController.createOnboarding)
+router.get("/create-onboarding", verifyTokenUser, checkRole(["admin", "owner"]), restaurantController.createOnboarding)
 
 // Actualizacion de restaurante
-router.put("/:id", verifyTokenUser, checkRole("admin"), validateJoi(validateUpdateRestaurant, "body"), validateJoi(validateObjectId, "params"), upload.single('logo'), restaurantController.update);
+router.put("/:id", verifyTokenUser, checkRole(["admin", "owner"]), validateJoi(validateUpdateRestaurant, "body"), validateJoi(validateObjectId, "params"), upload.single('logo'), restaurantController.update);
 
 export default router

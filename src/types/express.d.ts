@@ -4,11 +4,28 @@ import { JwtPayload } from "jsonwebtoken";
 export interface UserPayload {
     [x: string]: ObjectId;
     id: Types.ObjectId;
+    isValidateMail: boolean;
     name: string;
     email: string;
     role: string;
     restaurant: Types.ObjectId;
     profileImage?: string;
+}
+
+export interface PaginateResult<T> {
+    docs: T[];
+    totalDocs: number;
+    limit: number;
+    hasPrevPage: boolean;
+    hasNextPage: boolean;
+    page?: number;
+    totalPages: number;
+    offset: number;
+    prevPage?: number | null;
+    nextPage?: number | null;
+    pagingCounter: number;
+    meta?: any;
+    [customLabel: string]: T[] | number | boolean | null | undefined;
 }
 
 export interface RestaurantInfo {
@@ -17,11 +34,15 @@ export interface RestaurantInfo {
     logo?: string;
 }
 
+export interface WaiterInfo {
+    id: Types.ObjectId;
+    name: string;
+}
+
 export interface QRTablePayload {
-    tableId: Types.ObjectId;
-    waiterName: string;
+    table: Types.ObjectId;
     restaurant: RestaurantInfo;
-    waiterId: Types.ObjectId;
+    waiter: WaiterInfo;
     toGo: false;
 }
 

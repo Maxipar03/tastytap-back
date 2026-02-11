@@ -1,7 +1,7 @@
 import { orderService } from "../service/order.service.js";
+import { OrderService } from "../types/order.js";
 import { BadRequestError, NotFoundError, OrderReadyError } from "../utils/custom-error.js";
 import { Request, Response, NextFunction } from "express";
-import OrderService from "../service/order.service.js";
 import { OrderFiltersMapper } from "../dto/order-filters.dto.js";
 import { httpResponse } from "../utils/http-response.js";
 import { prepareOrderData } from "../utils/orders.js";
@@ -18,22 +18,22 @@ class OrderController {
         this.service = service;
     }
 
-    create = async (req: Request, res: Response, next: NextFunction) => {
+    create = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
         try {
             const { tableData, user, orderId, toGoData } = req;
             const body = req.body as CreateOrderBodyDto;
 
             const logContext = {
-                userId: user?.id,
-                tableId: tableData?.tableId,
-                restaurantId: tableData?.restaurant?.id || toGoData?.restaurant,
+                user: user?.id,
+                table: tableData?.table,
+                restaurant: tableData?.restaurant?.id || toGoData?.restaurant,
                 isToGo: !!toGoData,
                 itemsCount: body.items?.length
             };
             logger.info(logContext, "Iniciando creación de orden");
 
             if (!user && !body.guestName && !orderId) throw new BadRequestError("Datos de usuario no encontrados");
-            if (tableData) await this.service.validateTableForOrder(tableData.tableId);
+            if (tableData) await this.service.validateTableForOrder(tableData.table);
 
             let orderData = prepareOrderData({ 
                 body, 
@@ -63,7 +63,7 @@ class OrderController {
         }
     }
 
-    selectPayMethod = async(req: Request, res: Response, next: NextFunction) => {
+    selectPayMethod = async(req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
         try {
             const idOrder = req.orderId;
             const { paymentMethod } = req.body;
@@ -77,7 +77,7 @@ class OrderController {
         }
     }
 
-    sendReceipt = async(req:Request, res:Response, next: NextFunction) => {
+    sendReceipt = async(req:Request, res:Response, next: NextFunction): Promise<Response | void> => {
         try{
             const orderId = req.orderId;
             const user = req.user;
@@ -99,7 +99,7 @@ class OrderController {
         }
     }
 
-    getByTokenUser = async (req: Request, res: Response, next: NextFunction) => {
+    getByTokenUser = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
         try {
             const idOrder = req.orderId;
             if (!idOrder) throw new NotFoundError("Datos de orden no encontrados");
@@ -110,7 +110,7 @@ class OrderController {
         }
     }
 
-    updateStatusOrder = async (req: Request, res: Response, next: NextFunction) => {
+    updateStatusOrder = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
         try {
             const { id } = req.params;
             const body = req.body as UpdateOrderStatusDto;
@@ -137,7 +137,7 @@ class OrderController {
     }
 
 
-    getByRestaurantId = async (req: Request, res: Response, next: NextFunction) => {
+    getByRestaurantId = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
         try {
             const waiterId = req.user?.id;
             const restaurant = req.user?.restaurant;
@@ -151,17 +151,7 @@ class OrderController {
 
             return httpResponse.Ok(res, {
                 orders: response?.docs || [],
-                pagination: {
-                    totalDocs: response?.totalDocs || 0,
-                    limit: response?.limit || 5,
-                    totalPages: response?.totalPages || 0,
-                    page: response?.page || 1,
-                    pagingCounter: response?.pagingCounter || 0,
-                    hasPrevPage: response?.hasPrevPage || false,
-                    hasNextPage: response?.hasNextPage || false,
-                    prevPage: response?.prevPage || null,
-                    nextPage: response?.nextPage || null
-                },
+                response,
                 waiterId,
                 restaurant
             });
@@ -170,7 +160,7 @@ class OrderController {
         }
     };
 
-    getOrdersByRestaurant = async (req: Request, res: Response, next: NextFunction) => {
+    getOrdersByRestaurant = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
         try {
             const restaurant = req.user?.restaurant;
             if (!restaurant) throw new NotFoundError("Datos de restaurante no encontrados");
@@ -184,7 +174,7 @@ class OrderController {
         }
     };
 
-    getByUserId = async (req: Request, res: Response, next: NextFunction) => {
+    getByUserId = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
         try {
             const userId = req.user?.id;
             if (!userId) throw new NotFoundError("Datos de usuario no encontrados");
@@ -195,7 +185,7 @@ class OrderController {
         }
     };
 
-    updateStatusItems = async (req: Request, res: Response, next: NextFunction) => {
+    updateStatusItems = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
         try {
             const { orderId, itemId } = req.params;
             const { status, deletionReason } = req.body as UpdateItemStatusDto;
@@ -213,12 +203,12 @@ class OrderController {
         }
     }
 
-    validate = async (req: Request, res: Response, next: NextFunction) => {
+    validate = async (req: Request, res: Response, next: NextFunction): Promise<Response> => {
         if (!req.orderId) return httpResponse.NoContent(res)
         return httpResponse.Ok(res, req.orderId);
     }
 
-    getOrderDetails = async (req: Request, res: Response, next: NextFunction) => {
+    getOrderDetails = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
         try {
             const { id } = req.params;
             if (!id) throw new NotFoundError("ID de orden no encontrado");
@@ -230,7 +220,7 @@ class OrderController {
         }
     }
 
-    createManualOrder = async (req: Request, res: Response, next: NextFunction) => {
+    createManualOrder = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
         try {
             const body = req.body as CreateManualOrderDto;
             const { items, tableId } = body;

@@ -1,7 +1,8 @@
 import Joi from "joi";
 
-export const validateSendInvitationAdmin = Joi.object({
-    email: Joi.string().email().required()
+export const validateSendInvitation= Joi.object({
+    email: Joi.string().email().required(),
+    role: Joi.string().required()
 });
 
 export const validateTokenParam = Joi.object({

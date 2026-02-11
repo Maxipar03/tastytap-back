@@ -1,10 +1,13 @@
 import { RestaurantInvitationModel } from "./models/restaurant-invitation.model.js";
 import { RestaurantInvitationDao, RestaurantInvitationDB } from "../../types/restaurant-invitation.js";
+import { Model } from "mongoose";
+import MongoDao from "./mongo.dao.js";
 
-class RestaurantInvitationMongoDao implements RestaurantInvitationDao {
-    create = async (email: string, token: string, expiresAt: Date, role: string, scope: string, restaurantId?: string): Promise<RestaurantInvitationDB> => {
-        return await RestaurantInvitationModel.create({ email, token, expiresAt, role, scope, restaurantId });
-    };
+class RestaurantInvitationMongoDao extends MongoDao<RestaurantInvitationDB, any> {
+
+    constructor(model: Model<RestaurantInvitationDB>) {
+        super(model);
+    }
 
     getByToken = async (token: string): Promise<RestaurantInvitationDB | null> => {
         return await RestaurantInvitationModel.findOne({ token });
@@ -13,8 +16,7 @@ class RestaurantInvitationMongoDao implements RestaurantInvitationDao {
     markAsUsed = async (token: string, restaurantId: string): Promise<RestaurantInvitationDB | null> => {
         return await RestaurantInvitationModel.findOneAndUpdate(
             { token },
-            { used: true, restaurantId },
-            { new: true }
+            { used: true, restaurantId }
         );
     };
 
@@ -23,4 +25,4 @@ class RestaurantInvitationMongoDao implements RestaurantInvitationDao {
     };
 }
 
-export const restaurantInvitationMongoDao = new RestaurantInvitationMongoDao();
+export const restaurantInvitationMongoDao = new RestaurantInvitationMongoDao(RestaurantInvitationModel);

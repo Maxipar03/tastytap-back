@@ -1,5 +1,6 @@
 import { model, Schema } from "mongoose"
 import { FoodDB } from "../../../types/food.js"
+import mongoosePaginate from "mongoose-paginate-v2"
 
 const FoodSchema = new Schema <FoodDB>({
     name: {
@@ -75,5 +76,7 @@ const FoodSchema = new Schema <FoodDB>({
 }, {
     timestamps: true
 });
+
+FoodSchema.plugin(mongoosePaginate);
 
 export const FoodModel = model <FoodDB> ("food", FoodSchema)

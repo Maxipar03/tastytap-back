@@ -1,5 +1,5 @@
-import { orderRepository } from "../repository/order.repository.js";
-import { DashboardResponseDto, TopFoodData, CategoryDistribution, TimeFilter, EvolutionData, WaiterRankingData } from "../dto/dashboard.dto.js";
+import { orderMongoDao } from "../dao/mongodb/order.dao.js";
+import { DashboardResponseDto, TopFoodData, CategoryDistribution, EvolutionData, WaiterRankingData } from "../dto/dashboard.dto.js";
 import { Types } from "mongoose";
 
 export default class DashboardService {
@@ -46,17 +46,17 @@ export default class DashboardService {
         const evolutionFormat = this.getEvolutionFormat(timeFilter);
 
         const [totalStats, topFoodsAggregation, categoryDistribution, evolutionData, waitersRanking] = await Promise.all([
-            orderRepository.getTotalStats(restaurantId, dateFilter),
-            orderRepository.getTopSellingFoods(restaurantId, dateFilter),
-            orderRepository.getCategoryDistribution(restaurantId, dateFilter),
-            orderRepository.getEvolutionData(restaurantId, dateFilter, evolutionFormat),
-            orderRepository.getWaitersRanking(restaurantId, dateFilter)
+            orderMongoDao.getTotalStats(restaurantId, dateFilter),
+            orderMongoDao.getTopSellingFoods(restaurantId, dateFilter),
+            orderMongoDao.getCategoryDistribution(restaurantId, dateFilter),
+            orderMongoDao.getEvolutionData(restaurantId, dateFilter, evolutionFormat),
+            orderMongoDao.getWaitersRanking(restaurantId, dateFilter)
         ]);
 
 
         const topFoodsData: TopFoodData[] = topFoodsAggregation.map((item: any) => ({
             foodId: item._id.toString(),
-            foodName: item.foodName, 
+            foodName: item.foodName,
             quantity: item.quantity
         }));
 
@@ -68,8 +68,8 @@ export default class DashboardService {
             percentage: item.percentage
         }));
 
-        const averageTicket = totalStats.totalOrders > 0 
-            ? Math.round((totalStats.totalRevenue / totalStats.totalOrders) * 100) / 100 
+        const averageTicket = totalStats.totalOrders > 0
+            ? Math.round((totalStats.totalRevenue / totalStats.totalOrders) * 100) / 100
             : 0;
 
         const evolution: EvolutionData[] = evolutionData.map((item: any, index: number) => ({

@@ -78,6 +78,7 @@ class UserServices {
                     throw new BadRequestError("La contraseña es requerida");
                 }
                 userData.password = await createHash(password);
+                userData.isValidateMail = false;
             }
 
             const response = await this.dao.create(userData);

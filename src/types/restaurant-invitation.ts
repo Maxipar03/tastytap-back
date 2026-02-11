@@ -5,7 +5,6 @@ export interface RestaurantInvitationDB extends Document {
     email: string;
     token: string;
     used: boolean;
-    scope: string;
     role: string;
     expiresAt: Date;
     restaurantId?: Types.ObjectId;
@@ -14,7 +13,13 @@ export interface RestaurantInvitationDB extends Document {
 }
 
 export interface RestaurantInvitationDao {
-    create: (email: string, token: string, expiresAt: Date, role: string, scope: string, restaurantId?: string) => Promise<RestaurantInvitationDB>;
+    create: (email: string, token: string, expiresAt: Date, role: string, restaurantId?: string) => Promise<RestaurantInvitationDB>;
     getByToken: (token: string) => Promise<RestaurantInvitationDB | null>;
     markAsUsed: (token: string, restaurantId: string) => Promise<RestaurantInvitationDB | null>;
+}
+
+export interface RestaurantInvitationService {
+    sendInvitation: (email: string, role: string, restaurantId?: string) => Promise<{ message: string }>;
+    validateToken: (token: string) => Promise<{ valid: boolean; email?: string, token: string }>
+    markAsUsed: (token: string, restaurantId: string) => Promise<void>;
 }

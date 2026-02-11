@@ -23,12 +23,11 @@ export const verifyTokenAccess = (req: Request, res: Response, next: NextFunctio
         return next(new UnauthorizedError("El token es invalido o esta expirado"));
     }
 
-    if ('tableId' in decoded && 'waiterId' in decoded) {
+    if (decoded.toGo === false) {
         req.tableData = {
-            waiterName: decoded.waiterName,
+            waiter: decoded.waiter,
             restaurant: decoded.restaurant,
-            tableId: decoded.tableId,
-            waiterId: decoded.waiterId,
+            table: decoded.table,
             toGo: false
         };
     } else {
@@ -43,12 +42,12 @@ export const verifyTokenAccess = (req: Request, res: Response, next: NextFunctio
 const createUserTokenMiddleware = (isOptional: boolean = false) => {
     return (req: Request, res: Response, next: NextFunction) => {
         const token = req.cookies.user_token;
-        
+
         if (!token) {
             if (isOptional) return next();
             throw new UnauthorizedError("No estás autorizado.");
         }
-        
+
         const userData = verifyToken<UserPayload>(token);
         if (!userData) {
             clearCookieUser(res);
@@ -59,6 +58,7 @@ const createUserTokenMiddleware = (isOptional: boolean = false) => {
         req.user = {
             id: userData.id,
             name: userData.name,
+            isValidateMail: userData.isValidateMail,
             restaurant: userData.restaurant,
             role: userData.role,
             email: userData.email,
@@ -71,19 +71,19 @@ const createUserTokenMiddleware = (isOptional: boolean = false) => {
 const createOrderTokenMiddleware = (isOptional: boolean = false) => {
     return (req: Request, res: Response, next: NextFunction) => {
         const token = req.cookies.order_token;
-        
+
         if (!token) {
             if (isOptional) return next();
             throw new UnauthorizedError('No estás autorizado.');
         }
-        
+
         const decoded = verifyToken<{ orderId: string }>(token);
         if (!decoded?.orderId) {
             clearCookieOrder(res);
             if (!isOptional) return next(new UnauthorizedError("El token es invalido o esta expirado"));
             return next();
         }
-        
+
         req.orderId = decoded.orderId;
         next();
     };
@@ -95,4 +95,4 @@ export const verifyTokenUser = createUserTokenMiddleware();
 
 export const optionalVerifyTokenUser = createUserTokenMiddleware(true);
 
-export const verifyTokenOrderOptional = createOrderTokenMiddleware(true);
+export const optionalVerifyTokenOrder = createOrderTokenMiddleware(true);

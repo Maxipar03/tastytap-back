@@ -1,6 +1,24 @@
 import { model, Schema } from "mongoose"
 import { RestaurantDB } from "../../../types/restaurant.js";
 
+const openingHoursSchema = new Schema({
+    day: {
+        type: String,
+        enum: ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"],
+        required: true
+    },
+    isOpen: {
+        type: Boolean,
+        default: true
+    },
+    periods: [
+        {
+            open: { type: String, required: true },
+            close: { type: String, required: true }  
+        }
+    ]
+}, { _id: false })
+
 const restaurantSchema = new Schema<RestaurantDB>({
     name: {
         type: String,
@@ -12,13 +30,13 @@ const restaurantSchema = new Schema<RestaurantDB>({
         required: true,
         trim: true
     },
+    openingHours: [openingHoursSchema],
     phone: {
         type: String,
         trim: true
     },
     email: {
         type: String,
-        required: true,
         unique: true,
         validate: {
             validator: (email: string) => {
@@ -63,4 +81,4 @@ const restaurantSchema = new Schema<RestaurantDB>({
     timestamps: true
 })
 
-export const RestaurantModel = model<RestaurantDB>("restaurant", restaurantSchema);
+export const RestaurantModel = model <RestaurantDB> ("restaurant", restaurantSchema);

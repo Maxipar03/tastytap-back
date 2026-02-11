@@ -135,3 +135,38 @@ export const sendOnboardingEmail = async (
     await transporter.sendMail(mailOptions)
 }
 
+export const sendVerificationEmail = async (
+    email: string, 
+    token: string
+): Promise<void> => {
+    // El enlace debe apuntar a la ruta de tu Frontend que maneja la validación
+    const verificationUrl = `${process.env.FRONT_ENDPOINT}/verify-user/${token}`;
+
+    const mailOptions = {
+        from: `"TastyTap 🍽️" <${process.env.EMAIL_USER}>`,
+        to: email,
+        subject: "Verifica tu cuenta en TastyTap",
+        html: `
+        <div style="background-color:#0f0f0f;padding:40px 0;font-family:Arial,sans-serif;">
+            <table align="center" style="max-width:600px;background:#18181b;border-radius:12px;color:#ffffff;">
+                <tr>
+                    <td style="padding:32px;text-align:center;">
+                        <h1 style="color:#f97316;">Bienvenido a TastyTap</h1>
+                        <p style="color:#d4d4d8;">Para comenzar a usar tu cuenta, por favor verifica tu correo electrónico.</p>
+                        <div style="margin:32px 0;">
+                            <a href="${verificationUrl}" 
+                               style="background:#f97316;color:white;padding:14px 28px;text-decoration:none;border-radius:10px;font-weight:bold;">
+                                Verificar mi cuenta
+                            </a>
+                        </div>
+                        <p style="color:#71717a;font-size:12px;">Este enlace expirará en 24 horas.</p>
+                    </td>
+                </tr>
+            </table>
+        </div>
+        `
+    };
+
+    await transporter.sendMail(mailOptions);
+};
+

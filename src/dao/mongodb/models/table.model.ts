@@ -4,10 +4,12 @@ import { TableDB } from "../../../types/table.js"; // Asegúrate de que la ruta 
 const tableSchema = new Schema<TableDB>({
     restaurant: {
         type: Schema.Types.ObjectId,
-        ref: 'restaurant'
+        ref: 'restaurant',
+        required: true
     },
     tableNumber: {
         type: Number,
+        required: true
     },
     state: {
         type: String,
@@ -31,4 +33,4 @@ const tableSchema = new Schema<TableDB>({
     timestamps: true
 });
 
-export const TableModel = model<TableDB>("table", tableSchema);
+export const TableModel = model <TableDB> ("table", tableSchema);

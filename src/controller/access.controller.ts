@@ -1,5 +1,6 @@
-import { Request, Response, NextFunction } from "express";
+import { AccessServices } from "../types/express.js";
 import { accessService } from "../service/access.service.js";
+import { Request, Response, NextFunction } from "express";
 import { UnauthorizedError, NotFoundError } from "../utils/custom-error.js";
 import { httpResponse } from "../utils/http-response.js";
 import { RestaurantModel } from "../dao/mongodb/models/restaurant.model.js";
@@ -7,7 +8,6 @@ import { JwtPayload } from "jsonwebtoken";
 import { UserPayload, QRTablePayload, QRToGoPayload } from "../types/express.js";
 import { Types } from "mongoose";
 import { setCookieAccess } from "../utils/cookies.js";
-import { AccessServices } from "../types/express.js";
 
 class AccessController {
 
@@ -18,7 +18,7 @@ class AccessController {
     };
 
     // QR Generator (whit token)
-    generateQRtable = async (req: Request, res: Response, next: NextFunction): Promise<any> => {
+    generateQRtable = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
         try {
             const { tableId } = req.body;
             const user = req.user as UserPayload;
@@ -30,14 +30,16 @@ class AccessController {
             if (!restaurant) throw new NotFoundError("Restaurant not found!");
 
             const payload: QRTablePayload & JwtPayload = {
-                tableId: new Types.ObjectId(tableId),
-                waiterName: user.name,
+                table: new Types.ObjectId(tableId),
+                waiter: {
+                    id: user.id,
+                    name: user.name
+                },
                 restaurant: {
                     id: restaurant._id,
                     name: restaurant.name,
                     ...(restaurant.logo && { logo: restaurant.logo })
                 },
-                waiterId: user.id,
                 toGo: false
             };
 
@@ -50,7 +52,7 @@ class AccessController {
     };
 
     // QR Generator (whit token)
-    generateQRtoGo = async (req: Request, res: Response, next: NextFunction): Promise<any> => {
+    generateQRtoGo = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
         try {
             const user = req.user as UserPayload;
             if (!user) throw new UnauthorizedError("User not authenticated!")
@@ -76,7 +78,7 @@ class AccessController {
     };
 
     // QR Validate
-    validateTokenTable = async (req: Request, res: Response, next: NextFunction) => {
+    validateTokenTable = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
         try {
             const token = req.params.token;
             if (!token) throw new NotFoundError("Token access is required");
@@ -94,7 +96,7 @@ class AccessController {
     };
 
     // QR Validate
-    validateTokenToGo = async (req: Request, res: Response, next: NextFunction) => {
+    validateTokenToGo = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
         try {
             const token = req.params.token;
             if (!token) throw new NotFoundError("Token access is required");
@@ -112,7 +114,7 @@ class AccessController {
         }
     };
 
-    validate = async (req: Request, res: Response, next: NextFunction) => {
+    validate = async (req: Request, res: Response, next: NextFunction): Promise<Response> => {
         if (!req.tableData && !req.toGoData) return httpResponse.NoContent(res)
         return httpResponse.Ok(res, { tableData: req.tableData, toGoData: req.toGoData });
     }

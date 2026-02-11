@@ -1,9 +1,15 @@
 import { Types } from "mongoose";
+import { Model } from "mongoose";
 import { TableSessionDB, TableSessionDao } from "../../types/table-session.js";
 import { TableSessionModel } from "./models/table-session.model.js";
 import { OrderModel } from "./models/order.model.js";
+import MongoDao from "./mongo.dao.js";
 
-export class TableSessionDaoMongoDB implements TableSessionDao {
+export class TableSessionDaoMongoDB extends MongoDao<TableSessionDB, any> {
+
+    constructor(model: Model<TableSessionDB>) {
+        super(model);
+    }
 
     async getByTableId(tableId: string | Types.ObjectId): Promise<TableSessionDB | null> {
         return await TableSessionModel.findOne({ table: tableId }).populate('orders').lean();
@@ -29,7 +35,14 @@ export class TableSessionDaoMongoDB implements TableSessionDao {
         return await TableSessionModel.find({
             restaurant,
             status: 'active'
-        }).lean();
+        }).populate({
+            path: 'table',
+            select: 'tableNumber status waiterServing',
+            populate: {
+                path: 'waiterServing',
+                select: 'name'
+            }
+        }).populate('orders').lean();
     }
 
     async createSession(restaurant: string | Types.ObjectId, table: string | Types.ObjectId, session?: any): Promise<TableSessionDB> {
@@ -52,18 +65,10 @@ export class TableSessionDaoMongoDB implements TableSessionDao {
     }
 
     async addOrderToSession(sessionId: string | Types.ObjectId, orderId: string | Types.ObjectId, session?: any): Promise<TableSessionDB | null> {
-
-        console.log("=== addOrderToSession DAO ===");
-        console.log("OrderId:", orderId);
-        console.log("SessionId:", sessionId);
-        console.log("Session:", session);
-
         const orderQuery = OrderModel.findById(orderId);
         if (session) orderQuery.session(session);
 
         const order = await orderQuery;
-        console.log("Order found:", !!order);
-        console.log("Order pricing:", order?.pricing);
 
         if (!order) return null;
 
@@ -97,4 +102,4 @@ export class TableSessionDaoMongoDB implements TableSessionDao {
     }
 }
 
-export const tableSessionMongoDao = new TableSessionDaoMongoDB();
+export const tableSessionMongoDao = new TableSessionDaoMongoDB(TableSessionModel);

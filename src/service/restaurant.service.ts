@@ -28,12 +28,11 @@ export default class RestaurantService {
         await TableModel.insertMany(tables);
     };
 
-    create = async (body: CreateRestaurantDto & { logo?: Express.Multer.File }, userId: Types.ObjectId, email: string): Promise<CreateRestaurantResponse> => {
+    create = async (body: CreateRestaurantDto, userId: Types.ObjectId): Promise<CreateRestaurantResponse> => {
         try {
             const account = await stripe.accounts.create({
                 type: "express",
                 country: "US",
-                ...(body.email ? { email: body.email } : {}),
                 business_type: "company",
                 capabilities: {
                     transfers: { requested: true },
@@ -41,13 +40,8 @@ export default class RestaurantService {
                 },
             });
 
-            let imageUrl: string | undefined;
-            if (body.logo) imageUrl = await uploadToCloudinary(body.logo);
-
             const restaurantData = { 
                 ...body,
-                email: email, 
-                ...(imageUrl && { logo: imageUrl }), 
                 stripeAccountId: account.id 
             };
             const restaurant = await this.dao.create(restaurantData);
@@ -60,7 +54,7 @@ export default class RestaurantService {
             });
             
             await this.createTables(restaurant._id.toString(), body.numberTables);
-            await userMongoDao.update(userId.toString(), {role: "admin", restaurant: restaurant._id});
+            await userMongoDao.update(userId.toString(), {role: "owner", restaurant: restaurant._id});
             await cache.del(CACHE_KEYS.restaurants());
 
             return { _id: restaurant._id, restaurant, onboardingUrl: accountLink.url };
@@ -101,13 +95,6 @@ export default class RestaurantService {
         };
 
         const result = await this.dao.update(id, updateData);
-        await cache.del(CACHE_KEYS.restaurant(id));
-        await cache.del(CACHE_KEYS.restaurants());
-        return result;
-    };
-
-    delete = async (id: string): Promise<RestaurantDB | null> => {
-        const result = await this.dao.delete(id);
         await cache.del(CACHE_KEYS.restaurant(id));
         await cache.del(CACHE_KEYS.restaurants());
         return result;

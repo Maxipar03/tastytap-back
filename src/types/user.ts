@@ -1,7 +1,7 @@
 import { Document, Types } from 'mongoose';
 import { CreateUserDto } from '../dto/user.dto.js';
 
-export type UserRole = 'user' | 'waiter' | 'chef' | 'admin';
+export type UserRole = 'user' | 'waiter' | 'chef' | 'admin' | "owner";
 
 export interface UserDB extends Document {
     _id: Types.ObjectId;
@@ -10,6 +10,7 @@ export interface UserDB extends Document {
     password?: string;
     role: UserRole;
     phone?: string;
+    isValidateMail: boolean;
     profileImage?: string;
     orders?: Types.ObjectId[];
     restaurant?: Types.ObjectId | null;

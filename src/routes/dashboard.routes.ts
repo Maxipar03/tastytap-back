@@ -6,6 +6,6 @@ import { checkRole } from "../middleware/check-role.js";
 const router = Router();
 
 // Datos de panel de restaurante
-router.get("/", verifyTokenUser, checkRole("admin"), getDashboard);
+router.get("/", verifyTokenUser, checkRole(["admin", "owner"]), getDashboard);
 
 export default router;

@@ -1,11 +1,10 @@
 import { foodService } from "../service/food.service.js";
-import { FoodService } from "../types/food.js";
+import { FoodService, FoodOption } from "../types/food.js";
 import { Request, Response, NextFunction } from "express";
 import { MenuFiltersDto, MenuFiltersMapper } from "../dto/menu-filters.dto.js";
 import { httpResponse } from "../utils/http-response.js";
 import { BadRequestError, NotFoundError, UnauthorizedError } from "../utils/custom-error.js";
 import { CreateFoodDto, UpdateFoodDto } from "../dto/food.dto.js";
-import { FoodOption } from "../types/food.js";
 
 interface FoodRequestBody {
     name: string;
@@ -28,11 +27,11 @@ class FoodController {
         this.service = services;
     }
 
-    getAllMenu = async (req: Request, res: Response, next: NextFunction): Promise<any> => {
+    getAllMenu = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
         try {
 
             const restaurant = req.tableData?.restaurant.id || req.toGoData?.restaurant.id;
-            if (!restaurant) throw new BadRequestError("No se encontro el id del restaurante");
+            if (!restaurant) throw new NotFoundError("No se encontro el id del restaurante");
 
             const filters: MenuFiltersDto = MenuFiltersMapper.mapFromQuery(req.query);
 
@@ -44,29 +43,30 @@ class FoodController {
         }
     };
 
-    getAllAdmin = async (req: Request, res: Response, next: NextFunction): Promise<any> => {
+    getAllAdmin = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
         try {
-
             const restaurant = req.user?.restaurant;
-            if (!restaurant) throw new BadRequestError("No se encontro el id del restaurante");
+            if (!restaurant) throw new NotFoundError("No se encontro el id del restaurante");
 
-            const response = await this.service.getByRestaurant(restaurant, {});
+            const filters: MenuFiltersDto = MenuFiltersMapper.mapFromQuery(req.query);
+
+            const response = await this.service.getByRestaurant(restaurant, filters);
+
             return httpResponse.Ok(res, response);
-
         } catch (error) {
             next(error);
         }
     };
 
-    create = async (req: Request, res: Response, next: NextFunction): Promise<any> => {
+    create = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
         try {
 
             if (!req.user || !req.user.restaurant) throw new UnauthorizedError("Datos de usuario o restaurante no encontrados");
-            if (!req.body || !req.body.ingredients || !req.body.options) throw new NotFoundError("Datos de comida no encontrados");
+            if (!req.body || !req.body.ingredients) throw new NotFoundError("Datos de comida no encontrados");
 
             const body = req.body as FoodRequestBody;
             const parsedIngredients = JSON.parse(body.ingredients) as string[];
-            const parsedOptions = JSON.parse(body.options) as FoodOption[];
+            const parsedOptions = body.options ? JSON.parse(body.options) as FoodOption[] : [];
 
             const foodData: CreateFoodDto & { file?: Express.Multer.File } = {
                 name: body.name,
@@ -92,7 +92,7 @@ class FoodController {
         }
     };
 
-    getById = async (req: Request, res: Response, next: NextFunction): Promise<any> => {
+    getById = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
         try {
             const { id } = req.params;
             if (!id) throw new NotFoundError("Datos de comida no encontrados");
@@ -104,7 +104,7 @@ class FoodController {
         };
     }
 
-    update = async (req: Request, res: Response, next: NextFunction): Promise<any> => {
+    update = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
         try {
             const { id } = req.params;
             if (!id) throw new NotFoundError("Datos de comida no encontrados");
@@ -135,7 +135,7 @@ class FoodController {
         }
     };
 
-    delete = async (req: Request, res: Response, next: NextFunction): Promise<any> => {
+    delete = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
         try {
             const { id } = req.params;
             if (!id) throw new NotFoundError("Datos de comida no encontrados");

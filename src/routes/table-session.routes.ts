@@ -6,9 +6,9 @@ import { tableSessionController } from "../controller/table-session.controller.j
 const router = Router();
 
 // Obtener sessiones de mesas activas por resataurante
-router.get("/restaurant", verifyTokenUser, checkRole(["waiter", "admin", "chef"]), tableSessionController.getActiveSessionsByRestaurant);
+router.get("/restaurant", verifyTokenUser, checkRole(["waiter", "admin", "chef", "owner"]), tableSessionController.getActiveSessionsByRestaurant);
 
 // Creacion de session de mesa
-router.post("/", verifyTokenUser, checkRole(["waiter", "admin", "chef"]), tableSessionController.createSession);
+router.post("/", verifyTokenUser, checkRole(["waiter", "admin", "chef", "owner"]), tableSessionController.createSession);
 
 export default router;

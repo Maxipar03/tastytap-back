@@ -80,6 +80,7 @@ app
 
                 const allowedOrigins = [
                     "https://tastytap.net",
+                    "https://panel.tastytap.net",
                     "https://www.tastytap.net",
                     "https://tastytap-panel.vercel.app",
                     "http://localhost:3000",
