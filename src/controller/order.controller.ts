@@ -149,12 +149,7 @@ class OrderController {
 
             const response = await this.service.getByRestaurantId(restaurant, filters);
 
-            return httpResponse.Ok(res, {
-                orders: response?.docs || [],
-                response,
-                waiterId,
-                restaurant
-            });
+            return httpResponse.Ok(res, response);
         } catch (error) {
             next(error);
         }

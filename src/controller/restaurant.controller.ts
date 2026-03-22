@@ -32,8 +32,6 @@ class RestaurantController {
 
             logger.info({ restaurantId: id, userId: req.user?.id }, "Actualizando restaurante");
 
-            console.log("Como se encuentra: ", req.body)
-
             const body = req.body;
             const parsedOpeningHours = body.openingHours && body.openingHours !== "undefined"
                 ? JSON.parse(body.openingHours) as OpeningHour[]
@@ -43,7 +41,7 @@ class RestaurantController {
                 description: body.description,
                 phone: body.phone,
                 openingHours: parsedOpeningHours,
-                ...(req.file && { logo: req.file })
+                ...(req.file && { file: req.file })
             };
 
             console.log(updateData)
@@ -73,8 +71,8 @@ class RestaurantController {
     getRestaurantUsers = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
         try {
             const restaurantId = req.user?.restaurant;
+            console.log(req.user)
             if (!restaurantId) throw new BadRequestError("No tienes un restaurante asociado");
-            console.log(restaurantId)
 
             const users = await restaurantUsersService.getRestaurantUsers(restaurantId.toString());
             return httpResponse.Ok(res, users);

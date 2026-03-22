@@ -54,7 +54,7 @@ class FoodMongoDao extends MongoDao<FoodDB, CreateFoodDto> {
         const menuMatch = this.buildMenuQuery(filters);
         const options = {
             page: filters.page || 1,
-            limit: filters.limit || 10,
+            limit: filters.limit || 8,
             lean: true
         };
 

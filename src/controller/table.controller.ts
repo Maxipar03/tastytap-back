@@ -20,9 +20,8 @@ class TableController {
             if (!restaurant) throw new UnauthorizedError('No se encontro el usuario')
             if (!waiterId) throw new UnauthorizedError("No se encontro el ID del restaurante")
 
-
             const response = await this.service.getByRestaurat(restaurant);
-            return httpResponse.Ok(res, { restaurant, response, waiterId });
+            return httpResponse.Ok(res, response);
 
         } catch (error) {
             next(error);

@@ -40,9 +40,9 @@ export default class RestaurantService {
                 },
             });
 
-            const restaurantData = { 
+            const restaurantData = {
                 ...body,
-                stripeAccountId: account.id 
+                stripeAccountId: account.id
             };
             const restaurant = await this.dao.create(restaurantData);
 
@@ -52,9 +52,9 @@ export default class RestaurantService {
                 return_url: `${config.FRONT_ENDPOINT}/dashboard`,
                 type: "account_onboarding",
             });
-            
+
             await this.createTables(restaurant._id.toString(), body.numberTables);
-            await userMongoDao.update(userId.toString(), {role: "owner", restaurant: restaurant._id});
+            await userMongoDao.update(userId.toString(), { role: "owner", restaurant: restaurant._id });
             await cache.del(CACHE_KEYS.restaurants());
 
             return { _id: restaurant._id, restaurant, onboardingUrl: accountLink.url };
@@ -86,15 +86,16 @@ export default class RestaurantService {
     };
 
     update = async (id: string, body: Partial<RestaurantDB & { file?: Express.Multer.File }>): Promise<RestaurantDB | null> => {
-        let imageUrl: string | undefined;
-        if (body.file) imageUrl = await uploadToCloudinary(body.file);
+        
+        let newImageUrl: string | undefined;
+        let updatedPayload: Partial<RestaurantDB> = { ...body }
 
-        const updateData = {
-            ...body,
-            ...(imageUrl && { logo: imageUrl })
-        };
+        if (body.file) {
+            newImageUrl = await uploadToCloudinary(body.file);
+            updatedPayload = { ...body, logo: newImageUrl }
+        }
 
-        const result = await this.dao.update(id, updateData);
+        const result = await this.dao.update(id, updatedPayload);
         await cache.del(CACHE_KEYS.restaurant(id));
         await cache.del(CACHE_KEYS.restaurants());
         return result;
@@ -103,7 +104,7 @@ export default class RestaurantService {
     updateByStripeAccountId = async (stripeAccountId: string, data: Partial<RestaurantDB>): Promise<RestaurantDB | null> => {
         const restaurant = await this.dao.getByFilter({ stripeAccountId });
         if (!restaurant) return null;
-        
+
         const result = await this.dao.update(restaurant._id.toString(), data);
         await cache.del(CACHE_KEYS.restaurant(restaurant._id.toString()));
         await cache.del(CACHE_KEYS.restaurants());

@@ -49,6 +49,7 @@ const createUserTokenMiddleware = (isOptional: boolean = false) => {
         }
 
         const userData = verifyToken<UserPayload>(token);
+
         if (!userData) {
             clearCookieUser(res);
             if (!isOptional) return next(new UnauthorizedError("Token inválido o expirado"));

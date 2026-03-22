@@ -49,7 +49,7 @@ class FoodController {
             if (!restaurant) throw new NotFoundError("No se encontro el id del restaurante");
 
             const filters: MenuFiltersDto = MenuFiltersMapper.mapFromQuery(req.query);
-
+            
             const response = await this.service.getByRestaurant(restaurant, filters);
 
             return httpResponse.Ok(res, response);
