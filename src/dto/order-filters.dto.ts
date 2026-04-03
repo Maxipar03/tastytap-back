@@ -27,16 +27,6 @@ export class OrderFiltersMapper {
             filters.toDate = query.toDate as string;
         }
 
-        // Mapeo del filtro de waiter
-        const validWaiterValues = ["me", "others", "all"];
-        const waiterFilter = validWaiterValues.includes(query.waiter as string)
-            ? (query.waiter as string)
-            : "all";
-
-        if (waiterFilter !== "all") {
-            filters.waiter = waiterFilter === "me" ? currentWaiterId : "others";
-        }
-
         // Mapeo de parámetros de paginación
         if (query.page && !isNaN(Number(query.page))) {
             filters.page = Number(query.page);

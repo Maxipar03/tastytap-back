@@ -1,14 +1,14 @@
-import { CustomError, NotFoundError, UnauthorizedError } from "../utils/custom-error.js";
+import { CustomError, NotFoundError, UnauthorizedError } from "../utils/custom-error.utils.js";
 import { foodMongoDao } from "../dao/mongodb/food.dao.js";
 import { RestaurantModel } from "../dao/mongodb/models/restaurant.model.js";
 import { CreateFoodDto } from "../dto/food.dto.js";
 import { Types } from "mongoose";
-import { uploadToCloudinary, deleteFromCloudinary } from "../utils/cloudinary.js";
+import { uploadToCloudinary, deleteFromCloudinary } from "../utils/cloudinary.utils.js";
 import { MenuFiltersDto } from "../dto/menu-filters.dto.js";
-import { FoodDB } from "../types/food.js";
+import { FoodDB } from "../types/food.types.js";
 import { PaginateResult } from "../types/express.js";
-import { UserDB } from "../types/user.js";
-import cache from "../utils/cache.js";
+import { UserDB } from "../types/user.types.js";
+import cache from "../utils/cache.utils.js";
 
 export default class FoodService {
     private dao: typeof foodMongoDao
@@ -28,12 +28,15 @@ export default class FoodService {
             };
 
             const response = await this.dao.create(foodData as CreateFoodDto);
+
             if (!response) {
                 if (imageUrl) await deleteFromCloudinary(imageUrl);
                 throw new CustomError("Error al crear el plato", 500);
             }
+
             await RestaurantModel.findByIdAndUpdate(body.restaurant, { $push: { menu: response._id } });
             await cache.delPattern(`menu:${body.restaurant}:*`);
+
             return response;
         } catch (error) {
             throw error;
@@ -55,10 +58,12 @@ export default class FoodService {
             }
 
             const response = await this.dao.update(id, updatedPayload);
+
             if (!response) {
                 if (newImageUrl) await deleteFromCloudinary(newImageUrl);
                 throw new NotFoundError("No se encontro el plato");
             }
+            
             await cache.del(`food:${id}`);
             await cache.delPattern(`menu:${currentFood.restaurant}:*`);
             return response;

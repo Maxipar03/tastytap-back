@@ -1,0 +1,53 @@
+import { Document, Types } from "mongoose";
+import { CategoryDB } from "./category.types.js";
+import { CreateFoodDto } from "../dto/food.dto.js";
+import { PaginateResult } from "./express.js";
+import { MenuFiltersDto } from "../dto/menu-filters.dto.js";
+
+export interface FoodOptionValue {
+    label: string;
+    price: number;
+}
+
+export interface FoodOption {
+    type: 'radio' | 'checkbox';
+    name: string;
+    required: boolean;
+    values: FoodOptionValue[];
+}
+
+export interface FoodDB extends Document {
+    _id: Types.ObjectId;
+    name: string;
+    description: string;
+    price: number;
+    category: Types.ObjectId | CategoryDB | null;
+    options?: FoodOption[];
+    stock: number;
+    ingredients: string[];
+    isVegetarian: boolean;
+    isVegan: boolean;
+    isGlutenFree: boolean;
+    restaurant: Types.ObjectId;
+    image: string;
+    createdAt: Date;
+    updatedAt: Date;
+}
+
+export interface FoodDao {
+    create: (body: CreateFoodDto) => Promise<FoodDB>;
+    delete: (id: string) => Promise<FoodDB | null>;
+    getAll: () => Promise<FoodDB[]>;
+    update: (id: string, body: Partial<FoodDB>) => Promise<FoodDB | null>;
+    getById: (id: string) => Promise<FoodDB | null>;
+    getByRestaurant: (restaurantId: string | Types.ObjectId, filter: MenuFiltersDto) => Promise<PaginateResult<FoodDB>>;
+    updateFoodsByCategoryToNull: (categoryId: string | Types.ObjectId) => Promise<any>;
+}
+
+export interface FoodService {
+    create(foodData: CreateFoodDto): Promise<FoodDB>;
+    getById(id: string): Promise<FoodDB | null>;
+    update(id: string, userData: any, updateData: any): Promise<FoodDB | null>;
+    delete(id: string, userData: any): Promise<FoodDB | null>;
+    getByRestaurant(restaurantId: string | Types.ObjectId, filter: MenuFiltersDto): Promise<PaginateResult<FoodDB>>;
+}

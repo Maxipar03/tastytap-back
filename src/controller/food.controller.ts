@@ -1,9 +1,9 @@
 import { foodService } from "../service/food.service.js";
-import { FoodService, FoodOption } from "../types/food.js";
+import { FoodService, FoodOption } from "../types/food.types.js";
 import { Request, Response, NextFunction } from "express";
 import { MenuFiltersDto, MenuFiltersMapper } from "../dto/menu-filters.dto.js";
-import { httpResponse } from "../utils/http-response.js";
-import { BadRequestError, NotFoundError, UnauthorizedError } from "../utils/custom-error.js";
+import { httpResponse } from "../utils/response.utils.js";
+import {  NotFoundError, UnauthorizedError } from "../utils/custom-error.utils.js";
 import { CreateFoodDto, UpdateFoodDto } from "../dto/food.dto.js";
 
 interface FoodRequestBody {
@@ -29,13 +29,12 @@ class FoodController {
 
     getAllMenu = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
         try {
-
-            const restaurant = req.tableData?.restaurant.id || req.toGoData?.restaurant.id;
-            if (!restaurant) throw new NotFoundError("No se encontro el id del restaurante");
+            const { restaurantId } = req.params;
+            if (!restaurantId) throw new NotFoundError("No se encontro el id del restaurante");
 
             const filters: MenuFiltersDto = MenuFiltersMapper.mapFromQuery(req.query);
 
-            const response = await this.service.getByRestaurant(restaurant, filters);
+            const response = await this.service.getByRestaurant(restaurantId, filters);
             return httpResponse.Ok(res, response);
 
         } catch (error) {
@@ -65,6 +64,7 @@ class FoodController {
             if (!req.body || !req.body.ingredients) throw new NotFoundError("Datos de comida no encontrados");
 
             const body = req.body as FoodRequestBody;
+            
             const parsedIngredients = JSON.parse(body.ingredients) as string[];
             const parsedOptions = body.options ? JSON.parse(body.options) as FoodOption[] : [];
 

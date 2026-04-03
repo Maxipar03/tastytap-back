@@ -34,36 +34,6 @@ export interface RestaurantInfo {
     logo?: string;
 }
 
-export interface WaiterInfo {
-    id: Types.ObjectId;
-    name: string;
-}
-
-export interface QRTablePayload {
-    table: Types.ObjectId;
-    restaurant: RestaurantInfo;
-    waiter: WaiterInfo;
-    toGo: false;
-}
-
-export interface QRToGoPayload {
-    restaurant: RestaurantInfo;
-    toGo: true;
-}
-
-export interface QRResponse {
-    qrImage: string;
-    link: string;
-    token: string;
-}
-
-export interface AccessServices {
-    generateAccessQR: (payload: QRToGoPayload | QRTablePayload , type: 'table' | 'takeaway', expiresIn: Expiry = "3h") => Promise<QRResponse>;
-    handleTableAccess: (payload: QRTablePayload) => Promise<QRTablePayload>;
-    handleToGoAccess: (restaurantId: string | Types.ObjectId) => Promise<void>;
-    verifyQrToken: (token: string) => Promise<QRTablePayload>;
-}
-
 declare global {
     namespace Express {
         interface Request {

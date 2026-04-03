@@ -1,32 +1,31 @@
 import { Router } from "express";
-import accesRouter from "./access.routes.js";
 import foodRouter from "./food.routes.js";
 import categoryRouter from "./category.routes.js";
 import userRouter from "./user.routes.js";
-import tableRouter from "./table.routes.js";
 import orderRouter from "./order.routes.js";
-import tableSessionRouter from "./table-session.routes.js";
 import restaurantRouter from "./restaurant.routes.js";
 import stripeRouter from "./stripe.routes.js";
-import restaurantRequestRouter from "./restaurant-request.routes.js"
-import dashboardRouter from "./dashboard.routes.js";
-import userValidationRouter from "./user-validations.routes.js"
-import restaurantInvitationRouter from "./restaurant-invitation.routes.js";
+import onboardingRouter from "./onboarding.routes.js"; 
+import verificationRouter from "./account-verification.routes.js";
+import invitationRouter from "./invitation.routes.js";
 
 const router = Router();
 
+// Pagos
 router.use("/checkout", stripeRouter);
+
+// Usuarios
 router.use("/users", userRouter);
-router.use("/restaurant", restaurantRouter);
-router.use("/onboarding", restaurantInvitationRouter);
-router.use("/table-session", tableSessionRouter);
+router.use("/verification", verificationRouter)
+
+// Estructura del restaurante
+router.use("/restaurants", restaurantRouter);
+router.use("/invitations", invitationRouter);
+router.use("/onboarding", onboardingRouter);
+
+// Menú y categorías
 router.use("/categories", categoryRouter);
 router.use("/order", orderRouter);
 router.use("/dishes", foodRouter);
-router.use("/user-validation", userValidationRouter)
-router.use("/restaurant-request", restaurantRequestRouter);
-router.use("/tables", tableRouter);
-router.use("/access", accesRouter);
-router.use("/dashboard", dashboardRouter);
 
 export default router;

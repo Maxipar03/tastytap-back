@@ -1,6 +1,6 @@
 import { UserModel } from "./models/user.model.js";
 import MongoDao from "./mongo.dao.js";
-import { UserDB } from "../../types/user.js";
+import { UserDB } from "../../types/user.types.js";
 import { Model } from "mongoose";
 import { CreateUserDto } from "../../dto/user.dto.js";
 import { Types } from "mongoose";

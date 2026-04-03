@@ -1,10 +1,10 @@
 import { Router, Request, Response, NextFunction } from "express";
 import multer from "multer";
 import { restaurantController } from "../controller/restaurant.controller.js";
-import { checkRole } from "../middleware/check-role.js";
-import { verifyTokenUser } from "../middleware/check-token.js";
+import { checkRole } from "../middleware/role.middleware.js";
+import { authenticate } from "../middleware/auth.middleware.js";
 import { validateCreateRestaurant, validateObjectId, validateUpdateRestaurant } from "../validation/restaurant.validation.js";
-import { validateJoi } from "../middleware/validate-joi.js";
+import { validateRequest } from "../middleware/validator.middleware.js";
 
 const router = Router();
 
@@ -12,21 +12,46 @@ const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
 
 // Obtener resataurante
-router.get("/", verifyTokenUser, checkRole(["admin", "owner"]), restaurantController.getById);
-
-// Actualizar resataurante
-router.get("/:id", verifyTokenUser, validateJoi(validateObjectId, "params"),checkRole("owner"), restaurantController.update);
+router.get(
+    "/",
+    authenticate, 
+    checkRole(["admin", "owner"]),
+    restaurantController.getById
+);
 
 // Obtener usuarios de resaurante
-router.get("/users", verifyTokenUser, checkRole(["admin", "owner"]), restaurantController.getRestaurantUsers);
+router.get(
+    "/users", 
+    authenticate, 
+    checkRole(["admin", "owner"]), 
+    restaurantController.getRestaurantUsers
+);
 
 // Obtener invitaciones de resaurante
-router.get("/invitations", verifyTokenUser, checkRole(["admin", "owner"]), restaurantController.getRestaurantInvitations);
+router.get(
+    "/invitations", 
+    authenticate, 
+    checkRole(["admin", "owner"]), 
+    restaurantController.getRestaurantInvitations
+);
 
 // Creacion de setup stripe
-router.get("/create-onboarding", verifyTokenUser, checkRole(["admin", "owner"]), restaurantController.createOnboarding)
+router.get(
+    "/create-onboarding", 
+    authenticate, 
+    checkRole(["admin", "owner"]), 
+    restaurantController.createOnboarding
+);
 
 // Actualizacion de restaurante
-router.put("/:id", verifyTokenUser, checkRole(["admin", "owner"]), validateJoi(validateUpdateRestaurant, "body"), validateJoi(validateObjectId, "params"), upload.single('logo'), restaurantController.update);
+router.put(
+    "/:id",
+    authenticate, 
+    checkRole(["admin", "owner"]), 
+    validateRequest(validateUpdateRestaurant, "body"), 
+    validateRequest(validateObjectId, "params"), 
+    upload.single('logo'), 
+    restaurantController.update
+);
 
 export default router

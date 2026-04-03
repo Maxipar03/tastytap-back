@@ -1,14 +1,15 @@
 import { orderService } from "../service/order.service.js";
-import { OrderService } from "../types/order.js";
-import { BadRequestError, NotFoundError, OrderReadyError } from "../utils/custom-error.js";
+import { OrderService } from "../types/order.types.js";
+import { v4 as uuidv4 } from 'uuid';
+import { Types } from "mongoose";
+import { BadRequestError, NotFoundError } from "../utils/custom-error.utils.js";
 import { Request, Response, NextFunction } from "express";
 import { OrderFiltersMapper } from "../dto/order-filters.dto.js";
-import { httpResponse } from "../utils/http-response.js";
-import { prepareOrderData } from "../utils/orders.js";
-import { clearCookieAccess, clearCookieOrder, setCookieOrder } from "../utils/cookies.js";
-import logger from "../utils/logger.js";
-import { sendReceiptEmail } from "../utils/email.js";
-import { CreateOrderBodyDto, UpdateOrderStatusDto, UpdateItemStatusDto, CreateManualOrderDto } from "../dto/order.dto.js";
+import { httpResponse } from "../utils/response.utils.js";
+import { setCookieSession } from "../utils/cookies.utils.js";
+import logger from "../config/logger.config.js";
+import { sendReceiptEmail } from "../utils/email.utils.js";
+import { CreateOrderBodyDto, UpdateItemStatusDto, UpdateOrderBody } from "../dto/order.dto.js";
 
 class OrderController {
 
@@ -20,65 +21,57 @@ class OrderController {
 
     create = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
         try {
-            const { tableData, user, orderId, toGoData } = req;
-            const body = req.body as CreateOrderBodyDto;
+
+            const sessionId = req.cookies['session_id'] || uuidv4();
+
+            const user = req.user;
+            const { items, pricing, paymentMethod, restaurant, guestName } = req.body as CreateOrderBodyDto;
 
             const logContext = {
                 user: user?.id,
-                table: tableData?.table,
-                restaurant: tableData?.restaurant?.id || toGoData?.restaurant,
-                isToGo: !!toGoData,
-                itemsCount: body.items?.length
+                itemsCount: items.length
             };
+
             logger.info(logContext, "Iniciando creación de orden");
 
-            if (!user && !body.guestName && !orderId) throw new BadRequestError("Datos de usuario no encontrados");
-            if (tableData) await this.service.validateTableForOrder(tableData.table);
+            if (!guestName) throw new BadRequestError("Datos de usuario no encontrados");
 
-            let orderData = prepareOrderData({ 
-                body, 
-                ...(tableData && { tableData }),
-                ...(user && { user }),
-                ...(toGoData && { toGoData })
+            const result = await this.service.create({
+                items: items,
+                pricing: pricing,
+                paymentMethod: paymentMethod,
+                guestId: sessionId,
+                restaurant: restaurant.id,
+                userName: guestName,
+                clientId: user ? new Types.ObjectId(user.id) : undefined,
+                paymentStatus: "PENDING"
             });
 
-            // Crear la orden y responder con token
-            const result = await this.service.create(orderData, orderId as string);
             logger.info({ ...logContext, orderId: result.order?._id, total: result.order.pricing?.total }, "Orden creada exitosamente");
 
-            setCookieOrder(res, result.token)
-
-            return httpResponse.Created(res, result.order);
+            if (!req.cookies['session_id']) setCookieSession(res, sessionId);
+            return httpResponse.Created(res, result);
 
         } catch (error) {
-
-            logger.error({error}, "Error al crear orden");
-
-            if (error instanceof OrderReadyError) {
-                clearCookieOrder(res);
-                clearCookieAccess(res);
-            }
-
+            logger.error({ error }, "Error al crear orden");
             next(error);
         }
     }
 
-    selectPayMethod = async(req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+    getOrdersGuest = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
         try {
-            const idOrder = req.orderId;
-            const { paymentMethod } = req.body;
+            const sessionId = req.cookies['session_id'] as string;
+            if (!sessionId) throw new BadRequestError("Guest ID es requerido");
 
-            if (!idOrder || !paymentMethod) throw new BadRequestError("Datos de orden no encontrados");
-
-            const response = await this.service.selectPayMethod(idOrder, paymentMethod);
+            const response = await this.service.getOrdersGuest(sessionId);
             return httpResponse.Ok(res, response);
         } catch (error) {
             next(error);
         }
     }
 
-    sendReceipt = async(req:Request, res:Response, next: NextFunction): Promise<Response | void> => {
-        try{
+    sendReceipt = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+        try {
             const orderId = req.orderId;
             const user = req.user;
             const { email } = req.body;
@@ -94,17 +87,6 @@ class OrderController {
 
             await sendReceiptEmail(recipientEmail, order);
             return httpResponse.Ok(res, { message: "Recibo enviado exitosamente" });
-        }catch(error){
-            next(error);
-        }
-    }
-
-    getByTokenUser = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
-        try {
-            const idOrder = req.orderId;
-            if (!idOrder) throw new NotFoundError("Datos de orden no encontrados");
-            const response = await this.service.getById(idOrder);
-            return httpResponse.Ok(res, response);
         } catch (error) {
             next(error);
         }
@@ -113,21 +95,15 @@ class OrderController {
     updateStatusOrder = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
         try {
             const { id } = req.params;
-            const body = req.body as UpdateOrderStatusDto;
-            const { status, deletionReason } = body;
+            const { paymentStatus } = req.body as UpdateOrderBody;
             const restaurant = req.user?.restaurant;
-            const waiterId = req.user?.id;
 
-            if (!restaurant || !id ) throw new NotFoundError("Datos de restaurante no encontrados")
+            if (!restaurant || !id) throw new NotFoundError("Datos de restaurante no encontrados");
+            logger.info({ orderId: id, newStatus: paymentStatus, restaurantId: restaurant }, "Actualizando estado de orden");
 
-            // Validar razón de eliminación si el status es cancelled
-            if (status === "cancelled" && (!deletionReason || deletionReason.trim() === "")) throw new BadRequestError("El motivo de cancelación es obligatorio");
+            const response = await this.service.updateStatusOrder(id, paymentStatus, restaurant);
 
-            logger.info({ orderId: id, newStatus: status, waiterId, restaurantId: restaurant }, "Actualizando estado de orden");
-
-            const response = await this.service.updateStatusOrder(id, body, restaurant, waiterId);
-
-            logger.info({ orderId: id, waiterId }, "Estado de orden actualizado exitosamente");
+            logger.info({ orderId: id }, "Estado de orden actualizado exitosamente");
 
             return httpResponse.Ok(res, response);
         } catch (error) {
@@ -137,7 +113,7 @@ class OrderController {
     }
 
 
-    getByRestaurantId = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+    getOrdersPaginated = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
         try {
             const waiterId = req.user?.id;
             const restaurant = req.user?.restaurant;
@@ -160,7 +136,7 @@ class OrderController {
         }
     };
 
-    getOrdersByRestaurant = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+    getActiveOrders = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
         try {
             const restaurant = req.user?.restaurant;
             if (!restaurant) throw new NotFoundError("Datos de restaurante no encontrados");
@@ -174,38 +150,19 @@ class OrderController {
         }
     };
 
-    getByUserId = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
-        try {
-            const userId = req.user?.id;
-            if (!userId) throw new NotFoundError("Datos de usuario no encontrados");
-            const response = await this.service.getByUserId(userId);
-            return httpResponse.Ok(res, response);
-        } catch (error) {
-            next(error);
-        }
-    };
-
     updateStatusItems = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
         try {
             const { orderId, itemId } = req.params;
-            const { status, deletionReason } = req.body as UpdateItemStatusDto;
-            
+            const { status } = req.body as UpdateItemStatusDto;
+
             if (!orderId || !itemId) throw new NotFoundError("Datos de orden no encontrados");
 
-            // Validar razón de eliminación si el status es cancelled
-            if (status === "cancelled" && (!deletionReason || deletionReason.trim() === "")) throw new BadRequestError("La razón de eliminación es obligatoria");
-
-            const updatedOrder = await this.service.updateStatusItems(orderId, itemId, status, deletionReason)
+            const updatedOrder = await this.service.updateStatusItems(orderId, itemId, status)
 
             return httpResponse.Ok(res, updatedOrder)
         } catch (error) {
             next(error)
         }
-    }
-
-    validate = async (req: Request, res: Response, next: NextFunction): Promise<Response> => {
-        if (!req.orderId) return httpResponse.NoContent(res)
-        return httpResponse.Ok(res, req.orderId);
     }
 
     getOrderDetails = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
@@ -220,37 +177,24 @@ class OrderController {
         }
     }
 
-    createManualOrder = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+    checkout = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
         try {
-            const body = req.body as CreateManualOrderDto;
-            const { items, tableId } = body;
-            const restaurant = req.user?.restaurant;
-            const waiterId = req.user?.id;
+            const orderId = req.params.id;
+            const sessionId = req.cookies['session_id'];
 
-            if (!restaurant) throw new BadRequestError("No se encontró el restaurante del usuario");
-            if (!tableId) throw new BadRequestError("El ID de la mesa es requerido");
-            if (!items || items.length === 0) throw new BadRequestError("Debe incluir al menos un item");
+            if (!orderId) throw new NotFoundError("ID de orden no encontrado");
+            if (!sessionId) throw new BadRequestError("Guest ID es requerido");
 
-            const tableData = {
-                tableId,
-                waiterId,
-                restaurant: { id: restaurant }
-            };
+            const order = await this.service.getById(orderId);
+            if (!order) throw new NotFoundError("Orden no encontrada");
+            if (order.guestId !== sessionId) throw new BadRequestError("No autorizado para acceder a esta orden");
 
-            const orderData = prepareOrderData({
-                body: body as any,
-                tableData: tableData as any
-            });
+            return httpResponse.Ok(res, order);
 
-            orderData.manual = true;
-            orderData.paymentMethod = "cash";
-
-            const result = await this.service.create(orderData, "");
-            return httpResponse.Created(res, result.order);
         } catch (error) {
             next(error);
         }
     }
 }
 
-export const orderController = new OrderController(orderService)
+export const orderController = new OrderController(orderService);

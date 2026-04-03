@@ -1,6 +1,6 @@
 import { Model } from "mongoose";
 import { Types } from "mongoose";
-import { BadRequestError } from "../../utils/custom-error";
+import { BadRequestError } from "../../utils/custom-error.utils";
 import * as Sentry from "@sentry/node";
 
 export default class MongoDao<T, C> {

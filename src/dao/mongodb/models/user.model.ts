@@ -1,5 +1,5 @@
 import { model, Schema} from "mongoose"
-import { UserDB } from "../../../types/user.js";
+import { UserDB } from "../../../types/user.types.js";
 
 const UserSchema = new Schema <UserDB> ({
     name: {
@@ -30,8 +30,8 @@ const UserSchema = new Schema <UserDB> ({
     },
     role: {
         type: String,
-        enum: ['user', 'waiter', 'chef', 'admin', 'owner'],
-        default: 'user'
+        enum: ['USER', 'CHEF', 'OWNER'],
+        default: 'USER'
     },
     phone: {
         type: String,

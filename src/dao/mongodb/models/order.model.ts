@@ -1,6 +1,6 @@
 import { Schema, model } from "mongoose";
 import mongoosePaginate from "mongoose-paginate-v2";
-import { OrderDB, OrderItem, OrderItemOption, OrderItemOptionValue, OrderPricing } from "../../../types/order.js"
+import { OrderDB, OrderItem, OrderItemOption, OrderItemOptionValue, OrderPricing } from "../../../types/order.types.js"
 
 const OrderItemOptionValueSchema = new Schema<OrderItemOptionValue>({
     label: {
@@ -52,12 +52,8 @@ const OrderItemSchema = new Schema<OrderItem>({
     },
     status: {
         type: String,
-        enum: ["awaiting_payment", "pending", "preparing", "ready", "delivered", "cancelled"],
-        default: "pending",
-    },
-    deletionReason: {
-        type: String,
-        trim: true,
+        enum: ["PENDING", "PREPARING", "READY", "DELIVERED", "CANCELLED"],
+        default: "PENDING",
     },
 });
 
@@ -72,35 +68,10 @@ const OrderSchema = new Schema<OrderDB>({
         type: [OrderItemSchema],
         default: []
     },
-    tableId: {
-        type: Schema.Types.ObjectId,
-        ref: "table",
-        required: false,
-    },
     restaurant: {
         type: Schema.Types.ObjectId,
         ref: "restaurant",
         required: true,
-    },
-    waiterId: {
-        type: Schema.Types.ObjectId,
-        ref: "user",
-        required: false,
-    },
-    orderType: {
-        type: String,
-        enum: ["dine-in", "togo"],
-        default: "dine-in",
-    },
-    status: {
-        type: String,
-        enum: ["open", "awaiting_payment", "paid", "cancelled"],
-        default: "open",
-    },
-    activeSession: {
-        type: Schema.Types.ObjectId,
-        ref: "tableSession",
-        required: false,
     },
     receipt: {
         type: Boolean,
@@ -114,9 +85,8 @@ const OrderSchema = new Schema<OrderDB>({
         type: String,
         trim: true,
     },
-    manual: {
-        type: Boolean,
-        default: false,
+    guestId: {
+        type: String,
         trim: true,
     },
     pricing: {
@@ -125,24 +95,27 @@ const OrderSchema = new Schema<OrderDB>({
     },
     paymentMethod: {
         type: String,
-        enum: ["cash", "card"],
+        enum: ["CASH", "CARD"],
     },
-    isPaid: {
-        type: Boolean,
-        default: false,
-    },
-    cancellationReason: {
+    paymentStatus: {
         type: String,
-        trim: true,
+        enum: ["PENDING", "PAID", "FAILED", "REFUNDED"],
+        default: "PENDING",
+        index: true
     },
-    cancelledBy: {
-        type: Schema.Types.ObjectId,
-        ref: "user",
+    paymentIntentId: {
+        type: String,
+        sparse: true
     },
+    paymentSecret: {
+        type: String,
+        sparse: true
+    },
+
 }, {
     timestamps: true,
 });
 
 OrderSchema.plugin(mongoosePaginate);
 
-export const OrderModel = model <OrderDB> ("order", OrderSchema);
+export const OrderModel = model<OrderDB>("order", OrderSchema);

@@ -1,5 +1,5 @@
 import { model, Schema } from "mongoose"
-import { RestaurantDB } from "../../../types/restaurant.js";
+import { RestaurantDB } from "../../../types/restaurant.types.js";
 
 const openingHoursSchema = new Schema({
     day: {
@@ -52,8 +52,8 @@ const restaurantSchema = new Schema<RestaurantDB>({
     },
     stripeStatus: {
         type: String,
-        enum: ["pending", "active", "inactive"],
-        default: "pending"
+        enum: ["PENDING", "ACTIVE", "INACTIVE"],
+        default: "PENDING"
     },
     rating: {
         type: Number,
@@ -65,10 +65,6 @@ const restaurantSchema = new Schema<RestaurantDB>({
         type: Schema.Types.ObjectId,
         ref: "food"
     }],
-    numberTables: {
-        type: Number,
-        default: 0
-    },
     logo: {
         type: String,
         trim: true

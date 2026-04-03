@@ -1,11 +1,12 @@
-import stripe from "../config/stripe.js";
+import stripe from "../config/stripe.config.js";
 import { orderService } from "./order.service.js";
 import { restaurnatService } from "./restaurant.service.js";
-import { NotFoundError, CustomError } from "../utils/custom-error.js";
-import logger from "../utils/logger.js";
+import { NotFoundError, CustomError } from "../utils/custom-error.utils.js";
+import logger from "../config/logger.config.js";
 import * as Sentry from "@sentry/node";
 import Stripe from "stripe";
-import { withTransaction } from "../utils/transaction-manager.js";
+import { withTransaction } from "../utils/transaction.utils.js";
+import { PaymentStatus } from "../types/order.types.js";
 
 export default class StripeService {
 
@@ -22,12 +23,14 @@ export default class StripeService {
             // Obtener la orden por ID
             const order = await orderService.getById(orderId);
 
+            console.log("Este es el orderId:", orderId);
+
             if (!order) {
                 logger.error({ orderId }, "Orden no encontrada para payment intent");
                 throw new NotFoundError("No se encontró la orden");
             }
 
-            if (order.paymentMethod !== "card") {
+            if (order.paymentMethod !== "CARD") {
                 logger.error({ orderId }, "Método de pago no compatible con Stripe");
                 throw new CustomError("El método de pago no es compatible con Stripe", 400);
             };
@@ -38,12 +41,12 @@ export default class StripeService {
                 logger.error({ orderId, restaurantId: order.restaurant }, "Restaurante no encontrado para payment intent");
                 throw new NotFoundError("No se encontró el restaurante");
             }
+
             if (!restaurant.stripeAccountId) {
                 logger.error({ orderId, restaurantId: restaurant._id }, "Restaurante sin cuenta de Stripe configurada");
                 Sentry.captureMessage(`Restaurante sin cuenta Stripe: ${restaurant.name}`, "warning");
                 throw new CustomError("El restaurante no tiene configurado Stripe", 400);
             }
-
 
             const amount = Math.round(order.pricing.total * 100);
 
@@ -56,13 +59,13 @@ export default class StripeService {
 
             // Crear el payment intent
             const paymentIntent = await stripe.paymentIntents.create({
-                amount, // Stripe maneja centavos
+                amount,
                 currency: "usd",
                 transfer_data: {
                     destination: restaurant.stripeAccountId,
                 },
                 metadata: {
-                    orderId: orderId // Agregar orderId en metadata para el webhook
+                    orderId: orderId 
                 }
             });
 
@@ -140,13 +143,12 @@ export default class StripeService {
                     try {
                         await withTransaction(async (session) => {
                             const order = await orderService.getById(orderId);
-                            if (!order || order.status === "paid") return;
+                            if (!order || order.paymentStatus === "PAID") return;
 
                             await orderService.updateStatusOrder(
                                 orderId,
-                                { status: "paid", isPaid: true },
+                                "PAID",
                                 order.restaurant.toString(),
-                                undefined,
                                 session
                             );
 
@@ -185,7 +187,7 @@ export default class StripeService {
 
                 if (completed) {
                     await restaurnatService.updateByStripeAccountId(account.id, {
-                        stripeStatus: "active"
+                        stripeStatus: "ACTIVE"
                     });
 
                     logger.info({

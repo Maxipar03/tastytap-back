@@ -1,5 +1,5 @@
 import { CategoryModel } from "./models/category.model.js";
-import { CategoryDB } from "../../types/category.js";
+import { CategoryDB } from "../../types/category.types.js";
 import { CreateCategoryDto } from "../../dto/category.dto.js";
 import MongoDao from "./mongo.dao.js";
 import { Types } from "mongoose";
@@ -24,11 +24,15 @@ class CategoryMongoDao extends MongoDao<CategoryDB, CreateCategoryDto> {
             },
             {
                 $addFields: {
-                    foodCount: { $size: '$foods' },
-                    foods: '$$REMOVE'
+                    foodCount: { $size: '$foods' }
+                }
+            },
+            {
+                $project: {
+                    foods: 0
                 }
             }
-        ], { allowDiskUse: true });
+        ]);
     }
 }
 

@@ -1,10 +1,10 @@
 import { restaurnatService } from "../service/restaurant.service.js";
-import { restaurantUsersService } from "../service/restaurant-users.service.js";
-import { OpeningHour, RestaurantDB, RestaurantService } from "../types/restaurant.js";
+import { staffService } from "../service/staff.service.js";
+import { OpeningHour, RestaurantDB, RestaurantService } from "../types/restaurant.types.js";
 import { NextFunction, Request, Response } from "express";
-import { httpResponse } from "../utils/http-response.js";
-import { NotFoundError, UnauthorizedError, BadRequestError } from "../utils/custom-error.js";
-import logger from "../utils/logger.js";
+import { httpResponse } from "../utils/response.utils.js";
+import { NotFoundError, UnauthorizedError, BadRequestError } from "../utils/custom-error.utils.js";
+import logger from "../config/logger.config.js";
 
 class RestaurantController {
 
@@ -46,8 +46,6 @@ class RestaurantController {
                 ...(req.file && { logo: req.file })
             };
 
-            console.log(updateData)
-
             const response = await this.service.update(id, updateData);
 
             logger.info({ restaurantId: id, name: response?.name }, "Restaurante actualizado exitosamente");
@@ -76,7 +74,7 @@ class RestaurantController {
             if (!restaurantId) throw new BadRequestError("No tienes un restaurante asociado");
             console.log(restaurantId)
 
-            const users = await restaurantUsersService.getRestaurantUsers(restaurantId.toString());
+            const users = await staffService.getRestaurantUsers(restaurantId.toString());
             return httpResponse.Ok(res, users);
         } catch (error) {
             next(error);
@@ -88,7 +86,7 @@ class RestaurantController {
             const restaurantId = req.user?.restaurant;
             if (!restaurantId) throw new BadRequestError("No tienes un restaurante asociado");
 
-            const invitations = await restaurantUsersService.getRestaurantInvitations(restaurantId.toString());
+            const invitations = await staffService.getRestaurantInvitations(restaurantId.toString());
             return httpResponse.Ok(res, invitations);
         } catch (error) {
             next(error);

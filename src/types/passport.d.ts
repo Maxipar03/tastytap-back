@@ -1,4 +1,4 @@
-import { UserDB } from './user.ts';
+import { UserDB } from './user.types.js';
 
 declare global {
   namespace Express {

@@ -1,37 +1,32 @@
-import { OrderItem, PaymentMethod, OrderPricing, OrderStatus } from "../types/order.js";
+import { OrderItem, PaymentMethod, OrderPricing } from "../types/order.types.js";
 import { Types } from "mongoose";
 
 export interface CreateOrderDto {
     items: OrderItem[];
-    tableId?: Types.ObjectId | undefined;
     restaurant: Types.ObjectId;
-    waiterId?: Types.ObjectId | undefined;
-    status: OrderStatus;
+    guestId: string;
     clientId?: Types.ObjectId | undefined;
-    userName?: string | undefined;
+    userName: string;
     pricing: OrderPricing;
     paymentMethod?: PaymentMethod;
-    isPaid: boolean;
-    orderType: "dine-in" | "togo";
+    paymentStatus: "PENDING";
     manual?: boolean;
 }
 
 export interface CreateOrderBodyDto {
     items: OrderItem[];
     pricing: OrderPricing;
-    status: OrderStatus;
-    orderType: "dine-in" | "togo";
-    guestName?: string | undefined;
+    guestName: string;
+    paymentMethod: PaymentMethod;
+    restaurant: { id: Types.ObjectId };
 }
 
-export interface UpdateOrderStatusDto {
-    status: OrderStatus;
-    deletionReason?: string;
+export interface UpdateOrderBody {
+    paymentStatus: "PENDING" | "PAID" | "FAILED" | "REFUNDED";
 }
 
 export interface UpdateItemStatusDto {
-    status: "pending" | "preparing" | "ready" | "delivered" | "cancelled";
-    deletionReason?: string;
+    status: "PENDING" | "PREPARING" | "READY" | "DELIVERED";
 }
 
 export interface CreateManualOrderDto {

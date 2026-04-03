@@ -1,5 +1,5 @@
 import { FoodModel } from "./models/food.model.js";
-import { FoodDB } from "../../types/food.js";
+import { FoodDB } from "../../types/food.types.js";
 import { PaginateResult } from "../../types/express.js";
 import { CreateFoodDto } from "../../dto/food.dto.js";
 import MongoDao from "./mongo.dao.js";

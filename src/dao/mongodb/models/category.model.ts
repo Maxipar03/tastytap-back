@@ -1,5 +1,5 @@
 import { model, Schema } from "mongoose"
-import { CategoryDB } from "../../../types/category.js";
+import { CategoryDB } from "../../../types/category.types.js";
 
 const CategorySchema = new Schema <CategoryDB> ({
     name: {

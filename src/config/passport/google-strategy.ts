@@ -2,8 +2,8 @@ import "dotenv/config"
 import passport from "passport";
 import { Strategy, Profile, VerifyCallback } from "passport-google-oauth20";
 import { userService } from "../../service/user.service.js";
-import { UserDB } from "../../types/user.js";
-import { CustomError } from "../../utils/custom-error.js";
+import { UserDB } from "../../types/user.types.js";
+import { CustomError } from "../../utils/custom-error.utils.js";
 
 if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
     throw new CustomError("Missing GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET in environment variables.", 400);

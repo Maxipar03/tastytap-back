@@ -1,34 +1,51 @@
 import { Router, Request, Response, NextFunction } from "express";
 import { userController } from "../controller/user.controller.js";
-import { verifyTokenUser } from "../middleware/check-token.js";
-import { passportCall } from "../middleware/passport-call.js";
-import { validateJoi } from "../middleware/validate-joi.js";
+import { authenticate } from "../middleware/auth.middleware.js";
+import { passportCall } from "../middleware/passport.middleware.js";
+import { validateRequest } from "../middleware/validator.middleware.js";
 import { loginUserSchema, registerUserSchema } from "../validation/user.validation.js";
-import { authRateLimitMiddleware } from "../middleware/rate-limiter.js";
+import { rateLimitStrict } from "../middleware/ratelimit.middleware.js";
 
 const router = Router();
 
 // Registro de usuario
-router.post("/register", authRateLimitMiddleware, validateJoi(registerUserSchema, "body"), userController.register);
+router.post(
+    "/register",
+    rateLimitStrict,
+    validateRequest(registerUserSchema, "body"),
+    userController.register
+);
 
 // Inicio de usuario
-router.post("/login", authRateLimitMiddleware, validateJoi(loginUserSchema, "body"), userController.login);
+router.post(
+    "/login",
+    rateLimitStrict,
+    validateRequest(loginUserSchema, "body"),
+    userController.login
+);
 
 // Deslogeo de usuario
-router.post("/logout", userController.logout);
+router.post(
+    "/logout",
+    userController.logout
+);
 
 // Obtencion de usuario
-router.get("/me", verifyTokenUser, userController.getUser);
+router.get(
+    "/me",
+    authenticate,
+    userController.getUser
+);
 
 router.get(
     "/auth/google",
-    authRateLimitMiddleware,
+    rateLimitStrict,
     passportCall('google', { scope: ['profile', 'email'] })
 );
 
 router.get(
     "/oauth2/redirect/accounts.google.com",
-    authRateLimitMiddleware,
+    rateLimitStrict,
     passportCall('google', { assignProperty: "user" }),
     userController.googleResponse
 );

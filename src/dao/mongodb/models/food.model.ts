@@ -1,5 +1,5 @@
 import { model, Schema } from "mongoose"
-import { FoodDB } from "../../../types/food.js"
+import { FoodDB } from "../../../types/food.types.js"
 import mongoosePaginate from "mongoose-paginate-v2"
 
 const FoodSchema = new Schema <FoodDB>({

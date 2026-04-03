@@ -1,28 +1,28 @@
 import * as Sentry from "@sentry/node";
-import { initSentry } from "./config/sentry.js";
+import { initSentry } from "./config/sentry.config.js";
 import express, { Express, json, urlencoded, Request, Response, NextFunction } from "express";
-import { initSocketIO } from "./config/socket.js";
-import { initSocketListeners } from "./events/socket.listeners.js";
+import { initSocketIO } from "./config/socket.config.js";
+import { initSocketListeners } from "./events/socket.events.js";
 import path from "path";
-import { errorHandler } from "./middleware/error-handler.js";
-import config from "./config/config.js";
-import { initMongoDB } from "./config/db.js";
-import { connectRedis } from "./config/redis.js";
+import { errorHandler } from "./middleware/errors.middleware.js";
+import config from "./config/env.config.js";
+import { initMongoDB } from "./config/db.config.js";
+import { connectRedis } from "./config/redis.config.js";
 import apiRouter from "./routes/index.js";
 import passport from "passport";
 import session from "express-session";
 import cookieParser from "cookie-parser";
-import { httpLogger } from "./middleware/http-logger.js";
+import { httpLogger } from "./middleware/logger.middleware.js";
 import cors from "cors";
 import helmet from "helmet";
 import dotenv from "dotenv";
-import logger from "./utils/logger.js";
-import { setupProcessLogging } from "./utils/process-logger.js";
-import { rateLimitMiddleware } from "./middleware/rate-limiter.js";
-import { compressionConfig } from "./config/compression.js";
-import { mongoSanitizeMiddleware } from "./middleware/mongo-sanitize.js";
-import { sentryContextMiddleware } from "./middleware/sentry-context.js";
-import { setupAllAlerts } from "./utils/alerts-config.js";
+import logger from "./config/logger.config.js";
+import { setupProcessLogging } from "./config/proccess.config.js";
+import { rateLimitStandard } from "./middleware/ratelimit.middleware.js";
+import { compressionConfig } from "./config/compression.config.js";
+import { sanitizeData } from "./middleware/sanitize.middleware.js";
+import { traceRequestSentry } from "./middleware/sentry.middleware.js";
+import { setupAllAlerts } from "./utils/alerts.utils.js";
 import "./config/passport/google-strategy.js";
 import { } from "rate-limiter-flexible";
 
@@ -64,11 +64,10 @@ app
         limit: '1mb'
     }))
     .use(compressionConfig) // Compresión gzip optimizada
-    .use(rateLimitMiddleware) // Rate limiting global
+    .use(rateLimitStandard) // Rate limiting global
     .use(json())
     .use(urlencoded({ extended: true }))
-    .use(mongoSanitizeMiddleware) // Sanitización MongoDB
-    .use(sentryContextMiddleware) // Contexto de Sentry
+    .use(sanitizeData) // Sanitización MongoDB
     .use(httpLogger) // Loger HTTP
     .use(cookieParser()) // Cookies
     .use('/public', express.static(path.join(__dirname, 'public'))) // Ruta publica
@@ -77,7 +76,7 @@ app
             credentials: true,
             origin: function (origin, callback) {
                 if (!origin) return callback(null, true);
-
+                
                 const allowedOrigins = [
                     "https://tastytap.net",
                     "https://panel.tastytap.net",
@@ -112,6 +111,7 @@ app
     }))
     .use(passport.initialize())
     .use(passport.session())
+    .use(traceRequestSentry) // Contexto de Sentry
     .use("/api", apiRouter);
 
 Sentry.setupExpressErrorHandler(app);

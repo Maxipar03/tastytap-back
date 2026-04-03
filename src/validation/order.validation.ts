@@ -14,7 +14,7 @@ const itemSchema = Joi.object({
     price: commonValidations.positiveNumber.required(),
     quantity: Joi.number().integer().min(1).required(),
     notes: Joi.string().optional().allow(''),
-    status: Joi.string().valid('pending', 'preparing', 'ready', 'delivered', 'cancelled', 'awaiting_payment').default('pending'),
+    status: Joi.string().valid('PENDING', 'PREPARING', 'READY', 'DELIVERED').default('PENDING'),
 });
 
 const pricingSchema = Joi.object({
@@ -26,8 +26,11 @@ const pricingSchema = Joi.object({
 export const createOrderSchema = Joi.object({
     items: Joi.array().items(itemSchema).min(1).required(),
     pricing: pricingSchema.required(),
-    status: Joi.string().valid('open', 'awaiting_payment', 'paid', 'cancelled').default('open'),
-    orderType: Joi.string().valid('dine-in', 'togo').default('dine-in'),
+    guestName: commonValidations.text(3, 100).required(),
+    paymentMethod: Joi.string().valid('CASH', 'CARD').required(),
+    restaurant: Joi.object({
+        id: commonValidations.mongoId.required()
+    }).required(),
 }).unknown(true);
 
 export const validateItemAndTableOrder = Joi.object({

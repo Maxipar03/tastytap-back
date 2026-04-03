@@ -1,47 +1,93 @@
 import { Router, Request, Response, NextFunction } from "express";
 import { orderController } from "../controller/order.controller.js";
-import { verifyTokenAccess, verifyTokenOrder, verifyTokenUser, optionalVerifyTokenOrder } from "../middleware/check-token.js";
-import { validateJoi } from "../middleware/validate-joi.js";
+import { authenticateOptional, authenticate } from "../middleware/auth.middleware.js";
+import { validateRequest } from "../middleware/validator.middleware.js";
 import { validateIdOrder, createOrderSchema, validateUpdateItemStatus, validateUpdateOrderStatus } from "../validation/order.validation.js";
-import { checkRole } from "../middleware/check-role.js";
-import { optionalVerifyTokenUser } from "../middleware/check-token.js";
-import { apiRateLimitMiddleware } from "../middleware/rate-limiter.js";
-import { orderPerformanceMiddleware } from "../middleware/performance-middleware.js";
+import { checkRole } from "../middleware/role.middleware.js";
+import { rateLimitSensitive } from "../middleware/ratelimit.middleware.js";
+import { monitorOrderSentry } from "../middleware/sentry.middleware.js";
+
 
 const router = Router();
 
 // Creacion de orden
-router.post("/", orderPerformanceMiddleware, apiRateLimitMiddleware, verifyTokenAccess, optionalVerifyTokenUser, optionalVerifyTokenOrder, validateJoi(createOrderSchema, "body"), orderController.create);
-
-// Creacion de orden manual (admin)
-router.post("/manual", verifyTokenUser, checkRole(["waiter", "admin", "owner"]), orderController.createManualOrder);
+router.post(
+    "/", 
+    monitorOrderSentry, 
+    rateLimitSensitive, 
+    authenticateOptional, 
+    validateRequest(createOrderSchema, "body"), orderController.create
+);
 
 // Actualizacion de estado de items
-router.put("/:orderId/items/:itemId/status", orderPerformanceMiddleware, apiRateLimitMiddleware, verifyTokenUser, checkRole(["waiter", "admin", "chef", "owner"]), validateJoi( validateUpdateItemStatus, "params" ), orderController.updateStatusItems);
+router.put(
+    "/:orderId/items/:itemId/status", 
+    monitorOrderSentry, 
+    rateLimitSensitive, 
+    authenticate, 
+    checkRole(["waiter", "admin", "chef", "owner"]), 
+    validateRequest( validateUpdateItemStatus, "params" ), 
+    orderController.updateStatusItems
+);
 
-// Envio de recibico pedido
-router.post("/send-receipt", apiRateLimitMiddleware, verifyTokenOrder, optionalVerifyTokenUser, orderController.sendReceipt);
+// Envio de recibo pedido
+router.post(
+    "/send-receipt", 
+    rateLimitSensitive, 
+    authenticateOptional, 
+    orderController.sendReceipt
+);
 
-// Selecion de metodo de pago
-router.put("/payment", orderPerformanceMiddleware, apiRateLimitMiddleware, verifyTokenOrder, orderController.selectPayMethod);
+// Obtencion de orden por Guest ID
+router.get(
+    "/last-orders", 
+    rateLimitSensitive, 
+    orderController.getOrdersGuest
+);
 
-// Obtencion de orden por token
-router.get("/user-token", verifyTokenOrder, orderController.getByTokenUser);
-
-// Validacion de orden activa
-router.get("/validate", verifyTokenOrder, orderController.validate);
+// Checkout de orden
+router.get(
+    "/checkout/:id",
+    authenticateOptional, 
+    monitorOrderSentry, 
+    orderController.checkout
+);
 
 // Obtencion de ordenes por restaurante (admin)
-router.get("/restaurant-paginate", verifyTokenUser, checkRole(["waiter", "admin", "chef", "owner"]), orderController.getByRestaurantId);
+router.get(
+    "/paginate", 
+    authenticate, 
+    checkRole(["waiter", "admin", "chef", "owner"]), 
+    orderController.getOrdersPaginated
+);
 
 // Obtencion de ordenes por restaurante (admin)
-router.get("/restaurant", verifyTokenUser, checkRole(["waiter", "admin", "chef", "owner"]), orderController.getOrdersByRestaurant);
+router.get(
+    "/active", 
+    authenticate, 
+    checkRole(["waiter", "admin", "chef", "owner"]), 
+    orderController.getActiveOrders
+);
 
 // Actualizacion de estado de orden
-router.put("/:id", orderPerformanceMiddleware, apiRateLimitMiddleware, verifyTokenUser, checkRole(["waiter", "admin", "chef", "owner"]), validateJoi(validateIdOrder,"params"), validateJoi(validateUpdateOrderStatus, "body"), orderController.updateStatusOrder);
+router.put(
+    "/:id/status", 
+    monitorOrderSentry, 
+    rateLimitSensitive,
+    authenticate, 
+    checkRole(["waiter", "admin", "chef", "owner"]), 
+    validateRequest(validateIdOrder,"params"), 
+    validateRequest(validateUpdateOrderStatus, "body"), 
+    orderController.updateStatusOrder
+);
 
 // Obtencion de detalle de orden
-router.get("/:id/details", verifyTokenUser, checkRole(["waiter", "admin", "chef", "owner"]), orderController.getOrderDetails);
+router.get(
+    "/:id/details", 
+    authenticate, 
+    checkRole(["waiter", "admin", "chef", "owner"]), 
+    orderController.getOrderDetails
+);
 
 // Obtencion de pedidos por usuario
 // router.get("/user", verifyTokenUser, orderController.getByUserId);

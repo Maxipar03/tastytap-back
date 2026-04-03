@@ -1,11 +1,10 @@
 import { restaurantMongoDao } from "../dao/mongodb/restaurant.dao.js";
-import { RestaurantDao, RestaurantDB, CreateRestaurantResponse } from "../types/restaurant.js";
+import { RestaurantDao, RestaurantDB, CreateRestaurantResponse } from "../types/restaurant.types.js";
 import { CreateRestaurantDto } from "../dto/restaurant.dto.js";
-import { uploadToCloudinary } from "../utils/cloudinary.js";
-import { TableModel } from "../dao/mongodb/models/table.model.js";
-import config from "../config/config.js";
-import stripe from "../config/stripe.js";
-import cache from "../utils/cache.js";
+import { uploadToCloudinary } from "../utils/cloudinary.utils.js";
+import config from "../config/env.config.js";
+import stripe from "../config/stripe.config.js";
+import cache from "../utils/cache.utils.js";
 import { CACHE_TTL, CACHE_KEYS } from "../constants/business.js";
 import { userMongoDao } from "../dao/mongodb/user.dao.js";
 import { Types } from "mongoose";
@@ -17,19 +16,9 @@ export default class RestaurantService {
         this.dao = dao;
     }
 
-    private createTables = async (restaurantId: string, numberTables: number): Promise<void> => {
-        const tables = [];
-        for (let i = 1; i <= numberTables; i++) {
-            tables.push({
-                restaurant: restaurantId,
-                tableNumber: i,
-            });
-        }
-        await TableModel.insertMany(tables);
-    };
-
     create = async (body: CreateRestaurantDto, userId: Types.ObjectId): Promise<CreateRestaurantResponse> => {
         try {
+
             const account = await stripe.accounts.create({
                 type: "express",
                 country: "US",
@@ -53,8 +42,7 @@ export default class RestaurantService {
                 type: "account_onboarding",
             });
             
-            await this.createTables(restaurant._id.toString(), body.numberTables);
-            await userMongoDao.update(userId.toString(), {role: "owner", restaurant: restaurant._id});
+            await userMongoDao.update(userId.toString(), {role: "OWNER", restaurant: restaurant._id});
             await cache.del(CACHE_KEYS.restaurants());
 
             return { _id: restaurant._id, restaurant, onboardingUrl: accountLink.url };

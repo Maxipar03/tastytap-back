@@ -1,10 +1,10 @@
 import { userMongoDao } from "../dao/mongodb/user.dao.js";
-import { createHash, isValidPassword } from "../utils/user.js";
-import { UserDao, UserDB } from "../types/user.js";
-import { BadRequestError } from "../utils/custom-error.js";
+import { createHash, isValidPassword } from "../utils/auth.utils.js";
+import { UserDao, UserDB } from "../types/user.types.js";
+import { BadRequestError } from "../utils/custom-error.utils.js";
 import { CreateUserDto } from "../dto/user.dto.js";
-import logger from "../utils/logger.js";
-import cache from "../utils/cache.js";
+import logger from "../config/logger.config.js";
+import cache from "../utils/cache.utils.js";
 
 class UserServices {
 

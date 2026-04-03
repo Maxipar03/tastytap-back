@@ -1,11 +1,11 @@
 import { userService } from "../service/user.service.js";
-import { UserService } from "../types/user.js";;
+import { UserService } from "../types/user.types.js";;
 import { Request, Response, NextFunction } from "express";
-import { BadRequestError } from "../utils/custom-error.js";
-import { handleAuthSuccess } from "../utils/user.js";
-import { httpResponse } from "../utils/http-response.js";
-import { clearCookieUser } from "../utils/cookies.js";
-import logger from "../utils/logger.js";
+import { BadRequestError } from "../utils/custom-error.utils.js";
+import { httpResponse } from "../utils/response.utils.js";
+import { createUserPayload, generateToken } from "../utils/auth.utils.js";
+import { clearCookieUser, setCookieUser } from "../utils/cookies.utils.js";
+import logger from "../config/logger.config.js";
 import { CreateUserDto, LoginUserDto } from "../dto/user.dto.js";
 
 class UserController {
@@ -23,7 +23,12 @@ class UserController {
                 throw new BadRequestError("No se encontro el usuario");
             }
             logger.info({ userId: req.user.id, email: req.user.email }, "Autenticacion Google exitosa");
-            return handleAuthSuccess(res, req.user, true);
+
+            const userPayload = createUserPayload(req.user);
+            const token = generateToken(userPayload, "7d");
+            setCookieUser(res, token);
+
+            return httpResponse.Ok(res, { userPayload, redirect: '/menu' });
         } catch (error) {
             next(error);
         }
@@ -34,9 +39,15 @@ class UserController {
             const body = req.body as CreateUserDto;
             const { email } = body;
             logger.info({ email, ip: req.ip }, "Intento de registro de usuario");
+
             const newUser = await this.service.register(body);
             logger.info({ userId: newUser.id, email: newUser.email }, "Usuario registrado exitosamente");
-            return handleAuthSuccess(res, newUser, false);
+
+            const userPayload = createUserPayload(newUser);
+            const token = generateToken(userPayload, "7d");
+            setCookieUser(res, token);
+
+            return httpResponse.Created(res, { userPayload, redirect: '/menu' });
         } catch (error) {
             logger.warn({ email: req.body.email, error: error }, "Error en registro de usuario");
             next(error);
@@ -59,9 +70,15 @@ class UserController {
             const body = req.body as LoginUserDto;
             const { email, password } = body;
             logger.info({ email, ip: req.ip }, "Intento de inicio de sesion");
+
             const user = await this.service.login(email, password);
             logger.info({ userId: user.id, email: user.email }, "Inicio de sesion exitoso");
-            return handleAuthSuccess(res, user);
+
+            const userPayload = createUserPayload(user);
+            const token = generateToken(userPayload, "7d");
+            setCookieUser(res, token);
+
+            return httpResponse.Ok(res, { userPayload, redirect: '/menu' });
         } catch (error) {
             logger.warn({ email: req.body.email, ip: req.ip, error: error }, "Error en inicio de sesion");
             next(error);

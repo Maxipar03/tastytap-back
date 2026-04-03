@@ -1,9 +1,9 @@
 import { categoryMongoDao } from "../dao/mongodb/category.dao.js";
 import { foodMongoDao } from "../dao/mongodb/food.dao.js";
-import { CategoryDB, CategoryDao } from "../types/category.js";
+import { CategoryDB } from "../types/category.types.js";
 import { CreateCategoryDto, UpdateCategoryDto } from "../dto/category.dto.js";
 import { Types } from "mongoose";
-import cache from "../utils/cache.js";
+import cache from "../utils/cache.utils.js";
 
 export default class CategoryService {
 

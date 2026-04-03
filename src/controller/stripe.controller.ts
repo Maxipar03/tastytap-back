@@ -1,9 +1,8 @@
 import { Request, Response, NextFunction } from "express";
 import StripeService, { stripeService } from "../service/stripe.service.js";
-import { HttpResponse } from "../utils/http-response.js";
-import { BadRequestError } from "../utils/custom-error.js";
-import * as Sentry from "@sentry/node";
-import logger from "../utils/logger.js";
+import { HttpResponse } from "../utils/response.utils.js";
+import { BadRequestError } from "../utils/custom-error.utils.js";
+import logger from "../config/logger.config.js";
 const httpResponse = new HttpResponse();
 
 class StripeController {
@@ -12,35 +11,6 @@ class StripeController {
 
     constructor(services: StripeService) {
         this.service = services;
-    }
-
-    createPaymentIntent = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
-        try {
-            const { orderId } = req;
-            const userId = req.user?.id;
-
-            if (!orderId) {
-                logger.warn({ userId }, "Intento de crear payment intent sin orderId");
-                throw new BadRequestError("No se encontró el ID de la orden");
-            }
-
-            Sentry.setContext('payment_intent_data', { orderId, userId });
-            logger.info({ orderId, userId }, "Creando payment intent");
-
-            const paymentData = await this.service.createPaymentIntent(orderId);
-
-            logger.info({
-                orderId,
-                userId,
-                paymentIntentId: paymentData.paymentIntentId,
-                amount: paymentData.amount
-            }, "Payment intent creado exitosamente");
-
-            return httpResponse.Ok(res, paymentData);
-        } catch (error) {
-            logger.error({ orderId: req.orderId, error: error }, "Error al crear payment intent");
-            next(error);
-        }
     }
 
     handleWebhook = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {

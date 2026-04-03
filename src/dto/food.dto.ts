@@ -1,4 +1,4 @@
-import { FoodOption } from "../types/food.js";
+import { FoodOption } from "../types/food.types.js";
 import { Types } from "mongoose";
 
 export interface CreateFoodDto {
