@@ -3,19 +3,21 @@ import { orderMongoDao } from "../dao/mongodb/order.dao.js";
 import { foodMongoDao } from "../dao/mongodb/food.dao.js";
 import { userMongoDao } from "../dao/mongodb/user.dao.js";
 import { orderEvents } from "../events/order.events.js";
-import { CreateOrderDto, UpdateOrderBody, } from "../dto/order.dto.js";
-import { OrderDB, ItemStatus, CreateOrderResponse, OrderFilters, OrderItem, PaymentStatus } from "../types/order.types.js";
-import { CACHE_TTL, CACHE_KEYS, TAX_RATE } from "../constants/business.js";
-import { CustomError, NotFoundError, BadRequestError } from "../utils/custom-error.utils.js";
+import { CreateOrderDto } from "../dto/order.dto.js";
+import { FoodOption } from "../types/food.types.js";
+import { OrderItemOption } from "../types/order.types.js";
+import { OrderDB, ItemStatus, CreateOrderResponse, OrderFilters, OrderItem, PaymentStatus, OrderDao } from "../types/order.types.js";
+import { CACHE_TTL, CACHE_KEYS } from "../constants/business.js";
+import { NotFoundError, BadRequestError } from "../utils/custom-error.utils.js";
 import { withTransaction } from "../utils/transaction.utils.js";
 import logger from "../config/logger.config.js";
 import cache from "../utils/cache.utils.js";
 import { stripeService } from "./stripe.service.js";
 
 export default class OrderService {
-    private dao: typeof orderMongoDao;
+    private dao: OrderDao;
 
-    constructor(dao: typeof orderMongoDao) {
+    constructor(dao: OrderDao) {
         this.dao = dao;
     }
 
@@ -49,10 +51,122 @@ export default class OrderService {
     };
 
     create = async (body: CreateOrderDto): Promise<CreateOrderResponse> => {
-        // 1. TRANSACCIÓN DE BASE DE DATOS (Rápida y atómica)
+        // TRANSACCIÓN DE BASE DE DATOS (Rápida y atómica)
         const newOrder = await withTransaction(async (session) => {
 
-            const order = await this.dao.create(body, session);
+            const processedItems = await Promise.all(
+                body.items.map(async (item) => {
+
+                    // Validación de existencia de la comida
+                    const food = await foodMongoDao.getById(item.foodId.toString(), session);
+                    if (!food) {
+                        logger.error({ foodId: item.foodId }, "Comida no encontrada al crear orden");
+                        throw new NotFoundError(`No se encontró la comida con ID ${item.foodId}`);
+                    }
+
+                    // Validación de stock
+                    if (food.stock < item.quantity) {
+                        throw new BadRequestError(
+                            `Stock insuficiente para "${food.name}". Disponible: ${food.stock}, solicitado: ${item.quantity}`
+                        );
+                    }
+
+                    let optionsTotal = 0;
+                    const optionsSnapshot: OrderItemOption[] = [];
+                    const foodOptions: FoodOption[] = food.options ?? [];
+
+                    const optionsMap = new Map(foodOptions.map(o => [o._id?.toString(), o]));
+
+                    // Validar opciones requeridas
+                    for (const foodOption of foodOptions) {
+                        const selectedOption = item.options?.find(o => o.optionId.toString() === foodOption._id?.toString());
+                        if (foodOption.required && !selectedOption) {
+                            throw new BadRequestError(
+                                `Hay una opción requerida no selecionada para "${food.name}"`
+                            );
+                        }
+                    }
+
+                    // Validar cada opción seleccionada y construir snapshot
+                    for (const selected of item.options ?? []) {
+                        const foodOption = optionsMap.get(selected.optionId.toString());
+                        if (!foodOption) {
+                            throw new BadRequestError(
+                                `La opción seleccionada no existe en el producto "${food.name}"`
+                            );
+                        }
+
+                        // Checkbox: múltiples valores, Radio: uno solo
+                        const selectedValueIds: Types.ObjectId[] = foodOption.type === "checkbox"
+                            ? selected.valueIds
+                            : selected.valueIds[0] ? [selected.valueIds[0]] : [];
+
+                        if (foodOption.type === "radio" && selectedValueIds.length !== 1) {
+                            throw new BadRequestError(
+                                `La opción "${foodOption.name}" es de selección única (radio) en "${food.name}"`
+                            );
+                        }
+
+                        const snapshotValues: { label: string; price: number }[] = [];
+
+                        // Construir snapshot
+                        const valueMap = new Map(foodOption.values.map(v => [v._id?.toString(), v]));
+                        for (const valueId of selectedValueIds) {
+                            const optionValue = valueMap.get(valueId.toString());
+                            if (!optionValue) {
+                                throw new BadRequestError(
+                                    `Valor inválido para la opción "${foodOption.name}" en "${food.name}"`
+                                );
+                            }
+                            optionsTotal += optionValue.price;
+                            snapshotValues.push({ label: optionValue.label, price: optionValue.price });
+                        }
+
+                        optionsSnapshot.push({ name: foodOption.name, values: snapshotValues });
+                    }
+
+                    // Calcula y validar precio final
+                    const expectedUnitPrice = food.price + optionsTotal;
+                    const expectedTotalPrice = expectedUnitPrice * item.quantity;
+                    console.log(`Validando precio para "${food.name}": esperado ${expectedUnitPrice} por unidad, total esperado ${expectedTotalPrice}, precio recibido ${item.price} cantidad ${item.quantity}`);
+
+                    if (Math.abs(item.price - expectedUnitPrice) > 0.01) {
+                        throw new BadRequestError(
+                            `Precio inválido para "${food.name}". Esperado: ${expectedUnitPrice}, recibido: ${item.price}`
+                        );
+                    }
+
+                    // Construir item de orden con snapshot de opciones
+                    const orderItem: Omit<OrderItem, "_id"> = {
+                        foodId: food._id,
+                        foodName: food.name,
+                        quantity: item.quantity,
+                        price: expectedTotalPrice,
+                        options: optionsSnapshot,
+                        ...(item.notes !== undefined && { notes: item.notes }),
+                        status: "PENDING",
+                    };
+
+                    return orderItem;
+                })
+            );
+
+            const calculatedSubtotal = processedItems.reduce((sum, item) => sum + item.price, 0);
+
+            const TAX_RATE = 0.10;
+            const calculatedTax = parseFloat((calculatedSubtotal * TAX_RATE).toFixed(2));
+
+            // Calculo de total de orden
+            const calculatedTotal = calculatedSubtotal + calculatedTax;
+
+            // Objeto de precios validado
+            const validatedPricing: any = {
+                subtotal: calculatedSubtotal,
+                tax: calculatedTax,
+                total: calculatedTotal
+            };
+
+            const order = await this.dao.create({ ...body, pricing: validatedPricing, items: processedItems as any }, session);
 
             if (body.clientId) await userMongoDao.addOrderToUser(body.clientId, order._id.toString(), session);
 
@@ -86,7 +200,6 @@ export default class OrderService {
 
         } catch (error) {
             console.error(`Error procesando pago para orden ${newOrder._id}:`, error);
-
             throw new Error("Order created, but payment initialization failed. Please try again from your history.");
         }
     };

@@ -2,7 +2,7 @@ import { OrderItem, PaymentMethod, OrderPricing } from "../types/order.types.js"
 import { Types } from "mongoose";
 
 export interface CreateOrderDto {
-    items: OrderItem[];
+    items: CreateOrderItems[];
     restaurant: Types.ObjectId;
     guestId: string;
     clientId?: Types.ObjectId | undefined;
@@ -10,11 +10,25 @@ export interface CreateOrderDto {
     pricing: OrderPricing;
     paymentMethod?: PaymentMethod;
     paymentStatus: "PENDING";
-    manual?: boolean;
+}
+
+export interface OrderItemOption {
+    optionId: Types.ObjectId;
+    valueIds: Types.ObjectId[];
+}
+
+export interface CreateOrderItems {
+    foodId: Types.ObjectId;
+    foodName: string;
+    quantity: number;
+    price: number;
+    options?: OrderItemOption[];
+    notes?: string;
+    deletionReason?: string;
 }
 
 export interface CreateOrderBodyDto {
-    items: OrderItem[];
+    items: CreateOrderItems[];
     pricing: OrderPricing;
     guestName: string;
     paymentMethod: PaymentMethod;

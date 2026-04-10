@@ -24,14 +24,14 @@ export default class MongoDao<T, C> {
         }
     };
 
-    getById = async (id: string | Types.ObjectId): Promise<T | null> => {
+    getById = async (id: string | Types.ObjectId, session?: any): Promise<T | null> => {
         try {
             Sentry.addBreadcrumb({
                 category: 'database',
                 message: 'Executing getById query',
                 data: { collection: this.model.collection.name, id: id.toString() }
             });
-            return (await this.model.findById(id).lean()) as T | null;
+            return (await this.model.findById(id).session(session ?? null).lean()) as T | null;
         } catch (error) {
             throw error
         }

@@ -14,8 +14,6 @@ class OrderMongoDao extends MongoDao<OrderDB, CreateOrderDto> {
     getByIdWithPopulate = async (id: string | Types.ObjectId): Promise<OrderDB | null> => {
         return (await this.model.findById(id)
             .populate("clientId", "name profileImage")
-            .populate("waiterId", "name profileImage")
-            .populate("tableId", "tableNumber status")
             .lean()) as OrderDB | null;
     };
 
@@ -93,10 +91,6 @@ class OrderMongoDao extends MongoDao<OrderDB, CreateOrderDto> {
         const options: any = {
             page: filters.page || 1,
             limit: filters.limit || 5,
-            populate: [
-                { path: "waiterId", select: "name" },
-                { path: "tableId", select: "tableNumber" }
-            ],
             sort: { createdAt: -1 },
             lean: true
         };

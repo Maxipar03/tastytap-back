@@ -14,9 +14,10 @@ class UserValidationController {
 
     createUserValidation = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
         try {
-            const userId = req.user?.id
-            if (!userId) throw new BadRequestError("No se encuentra el email")
-            const userValidation = await this.service.CreateUserValidation(userId)
+            const userId = req.user?.id;
+            if (!userId) throw new BadRequestError("No se encuentra el email");
+
+            const userValidation = await this.service.CreateUserValidation(userId);
             httpResponse.Ok(res, userValidation);
         } catch (error) {
             next(error)
@@ -27,6 +28,7 @@ class UserValidationController {
         try {
             const { id } = req.params;
             if (!id) throw new BadRequestError("No se encuentra el token");
+
             const result = await this.service.validateToken(id);
             httpResponse.Ok(res, result);
         } catch (error) {

@@ -17,7 +17,7 @@ export default class OnboardingServices {
     approveOnboarding = async (id: string): Promise<OnboardingDB | null> => {
         const data = await this.dao.update(id, { statusRequest: "APPROVED" });
         if (!data) throw new BadRequestError("No se aprovar el restaurante")
-        await this.dao.create({name: data?.restaurantName, numberTables: data?.estimatedTables, address: data?.address, user: data?.user});
+        await this.dao.create({name: data?.restaurantName, address: data?.address, user: data?.user});
         return data;
     };
 

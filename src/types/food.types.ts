@@ -5,11 +5,13 @@ import { PaginateResult } from "./express.js";
 import { MenuFiltersDto } from "../dto/menu-filters.dto.js";
 
 export interface FoodOptionValue {
+    _id?: Types.ObjectId;
     label: string;
     price: number;
 }
 
 export interface FoodOption {
+    _id?: Types.ObjectId;
     type: 'radio' | 'checkbox';
     name: string;
     required: boolean;
@@ -37,10 +39,10 @@ export interface FoodDB extends Document {
 export interface FoodDao {
     create: (body: CreateFoodDto) => Promise<FoodDB>;
     delete: (id: string) => Promise<FoodDB | null>;
-    getAll: () => Promise<FoodDB[]>;
     update: (id: string, body: Partial<FoodDB>) => Promise<FoodDB | null>;
     getById: (id: string) => Promise<FoodDB | null>;
     getByRestaurant: (restaurantId: string | Types.ObjectId, filter: MenuFiltersDto) => Promise<PaginateResult<FoodDB>>;
+    decreaseStock: (foodId: string | Types.ObjectId, quantity: number, session?: any) => Promise<FoodDB | null>;
     updateFoodsByCategoryToNull: (categoryId: string | Types.ObjectId) => Promise<any>;
 }
 

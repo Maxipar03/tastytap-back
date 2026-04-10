@@ -1,9 +1,6 @@
 import nodemailer from 'nodemailer';
 import { OrderDB } from '../types/order.types.js';
 
-console.log("Email", process.env.EMAIL_USER)
-console.log("Password", process.env.EMAIL_PASSWORD)
-
 const transporter = nodemailer.createTransport({
     service: 'gmail',
     auth: {

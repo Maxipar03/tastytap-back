@@ -29,7 +29,7 @@ class UserMongoDao extends MongoDao<UserDB, CreateUserDto> {
 
     addOrderToUser = async (id: Types.ObjectId | string, idOrder: string, session?: any): Promise<any> => {
         try {
-            return await UserModel.findByIdAndUpdate(id, { $push: { orders: idOrder } }, { session }).lean();
+            return await this.model.findByIdAndUpdate(id, { $push: { orders: idOrder } }, { session }).lean();
         } catch (error) {
             throw error;
         }

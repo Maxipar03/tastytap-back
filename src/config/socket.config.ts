@@ -54,8 +54,8 @@ export const initSocketIO = (httpServer: HttpServer) => {
       console.log(`Mozo ${waiterId} unido a su sala personal`);
     });
 
-    socket.on("join-order", ({ orderId }) => {
-      socket.join(`order-${orderId}`);
+    socket.on("join-guest", ({ guestId }) => {
+      socket.join(`guest-${guestId}`);
     });
 
     socket.on("disconnect", () => {

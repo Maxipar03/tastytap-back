@@ -1,9 +1,7 @@
 import { Request, Response, NextFunction } from "express";
 import StripeService, { stripeService } from "../service/stripe.service.js";
-import { HttpResponse } from "../utils/response.utils.js";
 import { BadRequestError } from "../utils/custom-error.utils.js";
 import logger from "../config/logger.config.js";
-const httpResponse = new HttpResponse();
 
 class StripeController {
 

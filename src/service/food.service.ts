@@ -5,15 +5,15 @@ import { CreateFoodDto } from "../dto/food.dto.js";
 import { Types } from "mongoose";
 import { uploadToCloudinary, deleteFromCloudinary } from "../utils/cloudinary.utils.js";
 import { MenuFiltersDto } from "../dto/menu-filters.dto.js";
-import { FoodDB } from "../types/food.types.js";
+import { FoodDB, FoodDao } from "../types/food.types.js";
 import { PaginateResult } from "../types/express.js";
 import { UserDB } from "../types/user.types.js";
 import cache from "../utils/cache.utils.js";
 
 export default class FoodService {
-    private dao: typeof foodMongoDao
+    private dao: FoodDao
 
-    constructor(dao: typeof foodMongoDao) {
+    constructor(dao: FoodDao) {
         this.dao = dao;
     }
 

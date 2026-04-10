@@ -31,7 +31,7 @@ export interface OrderItemOption {
 }
 
 export interface OrderItem {
-    _id: any;
+    _id?: any;
     foodId: Types.ObjectId;
     foodName: string;
     quantity: number;
@@ -68,10 +68,10 @@ export interface OrderDB extends Document {
 export interface OrderDao {
     create: (body: CreateOrderDto, session?: any) => Promise<OrderDB>;
     update: (id: string | Types.ObjectId, body: Partial<OrderDB>, session?: any) => Promise<OrderDB | null>;
-    updateStatusItems: (orderId: string | Types.ObjectId, itemId: string | Types.ObjectId, status: ItemStatus, deletionReason?: string) => Promise<OrderDB | null>;
-    addItemsToOrder: (orderId: string | Types.ObjectId, items: OrderItem[], session?: any) => Promise<OrderDB | null>;
-    getByRestaurantId: (restaurant: string | Types.ObjectId, filters: OrderFilters) => Promise<any>;
     getOrdersGuest: (guestId: string) => Promise<OrderDB[]>;
+    updateStatusItems: (orderId: string | Types.ObjectId, itemId: string | Types.ObjectId, status: ItemStatus, deletionReason?: string) => Promise<OrderDB | null>;
+    getByRestaurantId: (restaurant: string | Types.ObjectId, filters: OrderFilters) => Promise<any>;
+    getByIdWithPopulate: (id: string | Types.ObjectId) => Promise<OrderDB | null>;
     getById: (id: string | Types.ObjectId, populate?: boolean) => Promise<OrderDB | null>;
 }
 

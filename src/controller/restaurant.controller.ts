@@ -17,9 +17,29 @@ class RestaurantController {
     getById = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
         try {
             const id = req.user?.restaurant;
-            if (!id) throw new NotFoundError("Datos de restaurante no encontrados")
+            if (!id) throw new NotFoundError("Datos de restaurante no encontrados");
+
             const response = await this.service.getById(id.toString());
             return httpResponse.Ok(res, response);
+        } catch (error) {
+            next(error);
+        }
+    };
+
+    getNearbyRestaurants = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+        try {
+            const { lat, lng, radius } = req.query;
+
+            const clientIp = (req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress || '';
+
+            const restaurants = await this.service.discoverRestaurants({
+                lat: lat ? Number(lat) : undefined,
+                lng: lng ? Number(lng) : undefined,
+                radius: radius ? Number(radius) : 5000, 
+                ip: clientIp,
+            });
+
+            return httpResponse.Ok(res, restaurants)
         } catch (error) {
             next(error);
         }
@@ -31,8 +51,6 @@ class RestaurantController {
             if (!id) throw new NotFoundError("Datos de restaurante no encontrados")
 
             logger.info({ restaurantId: id, userId: req.user?.id }, "Actualizando restaurante");
-
-            console.log("Como se encuentra: ", req.body)
 
             const body = req.body;
             const parsedOpeningHours = body.openingHours && body.openingHours !== "undefined"
@@ -72,7 +90,6 @@ class RestaurantController {
         try {
             const restaurantId = req.user?.restaurant;
             if (!restaurantId) throw new BadRequestError("No tienes un restaurante asociado");
-            console.log(restaurantId)
 
             const users = await staffService.getRestaurantUsers(restaurantId.toString());
             return httpResponse.Ok(res, users);

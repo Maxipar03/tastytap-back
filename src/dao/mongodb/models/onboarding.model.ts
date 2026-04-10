@@ -15,21 +15,12 @@ const OnboardingSchema = new Schema<OnboardingDB>({
         required: true,
         unique: true
     },
-    shopType: {
-        type: String,
-        required: true,
-        unique: true
-    },
     city: {
         type: String,
         required: true
     },
     phone: {
         type: String,
-        required: true
-    },
-    estimatedTables: {
-        type: Number,
         required: true
     },
     statusRequest: {

@@ -19,6 +19,12 @@ router.get(
     restaurantController.getById
 );
 
+// Obtener resataurante cercanos
+router.get(
+    "/explore",
+    restaurantController.getNearbyRestaurants
+);
+
 // Obtener usuarios de resaurante
 router.get(
     "/users", 

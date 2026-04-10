@@ -7,30 +7,20 @@ interface JoinWaiterPayload {
     waiterId: string;
 }
 
-interface JoinTablePayload {
-    restaurant: string;
-    role: string
-    tableId: string;
-}
-
-interface JoinOrderPayload {
-    orderId: string;
+interface JoinGuestPayload {
+    guestId: string;
 }
 
 export interface ClientToServerEvents {
     'join-restaurant': (payload: JoinRestaurantPayload) => void;
     'join-waiter': (payload: JoinWaiterPayload) => void;
-    'join-order': (payload: JoinOrderPayload) => void;
+    'join-guest': (payload: JoinGuestPayload) => void;
 }
 
 export interface ServerToClientEvents {
-    'order:created': (data: { order: any; kdsStatus: string; timestamp: Date }) => void;
-    'order:update': (data: { order: any; kdsStatus: string; newStatus?: string; timestamp: Date }) => void;
-    'item:update': (data: { orderId: string; itemId: string; order: any; kdsStatus: string; newStatus: string; type: string }) => void;
-    'item:add': (data: { order: any; kdsStatus: string; timestamp: Date }) => void;
-    'paymethod:selected': (data: { orderId: string; paymentMethod: string }) => void;
-    'QR-Used': (data: boolean) => void;
-    'mesa-actualizada': (data: any) => void;
+    'order:created': (data: { order: any; timestamp: Date }) => void;
+    'order:update': (data: { order: any; newStatus?: string; timestamp: Date }) => void;
+    'item:update': (data: { orderId: string; itemId: string; order: any; newStatus: string; type: string }) => void;
 }
 
 export interface SocketData {

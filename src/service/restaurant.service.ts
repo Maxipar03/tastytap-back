@@ -29,9 +29,9 @@ export default class RestaurantService {
                 },
             });
 
-            const restaurantData = { 
+            const restaurantData = {
                 ...body,
-                stripeAccountId: account.id 
+                stripeAccountId: account.id
             };
             const restaurant = await this.dao.create(restaurantData);
 
@@ -41,8 +41,8 @@ export default class RestaurantService {
                 return_url: `${config.FRONT_ENDPOINT}/dashboard`,
                 type: "account_onboarding",
             });
-            
-            await userMongoDao.update(userId.toString(), {role: "OWNER", restaurant: restaurant._id});
+
+            await userMongoDao.update(userId.toString(), { role: "OWNER", restaurant: restaurant._id });
             await cache.del(CACHE_KEYS.restaurants());
 
             return { _id: restaurant._id, restaurant, onboardingUrl: accountLink.url };
@@ -52,6 +52,48 @@ export default class RestaurantService {
             throw new Error(error.message || "Error al crear el restaurante");
         };
     };
+
+    async discoverRestaurants(params: { lat?: number | undefined, lng?: number | undefined, radius: number, ip: string }) {
+        let searchLat = params.lat;
+        let searchLng = params.lng;
+        let method = 'GPS';
+
+        // Si no hay coordenadas, fallback a IP
+        if (!searchLat || !searchLng) {
+            method = 'IP';
+            const response = await fetch(`http://ip-api.com/json/${params.ip}`);
+
+            if (!response.ok) throw new Error('Error en la API de IP');
+
+            const data = await (await response.json()) as {
+                status: 'success' | 'fail';
+                lat: number;
+                lon: number;
+                city: string;
+                message?: string;
+            };
+
+            if (data.status === 'success') {
+                searchLat = data.lat;
+                searchLng = data.lon;
+            } else {
+                console.warn(`⚠️ No se pudieron obtener coordenadas por IP: ${data.message}`);
+                searchLat = 0; searchLng = 0;
+            }
+        }
+
+        const stores = await this.dao.findByLocation({
+            lng: searchLng!,
+            lat: searchLat!,
+            radiusMeters: params.radius,
+        });
+
+        return {
+            source: method,
+            location: { lat: searchLat, lng: searchLng },
+            results: stores
+        };
+    }
 
     getAll = async (): Promise<RestaurantDB[]> => {
         const cacheKey = CACHE_KEYS.restaurants();
@@ -91,7 +133,7 @@ export default class RestaurantService {
     updateByStripeAccountId = async (stripeAccountId: string, data: Partial<RestaurantDB>): Promise<RestaurantDB | null> => {
         const restaurant = await this.dao.getByFilter({ stripeAccountId });
         if (!restaurant) return null;
-        
+
         const result = await this.dao.update(restaurant._id.toString(), data);
         await cache.del(CACHE_KEYS.restaurant(restaurant._id.toString()));
         await cache.del(CACHE_KEYS.restaurants());

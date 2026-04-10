@@ -3,7 +3,7 @@ import { FoodService, FoodOption } from "../types/food.types.js";
 import { Request, Response, NextFunction } from "express";
 import { MenuFiltersDto, MenuFiltersMapper } from "../dto/menu-filters.dto.js";
 import { httpResponse } from "../utils/response.utils.js";
-import {  NotFoundError, UnauthorizedError } from "../utils/custom-error.utils.js";
+import { NotFoundError, UnauthorizedError } from "../utils/custom-error.utils.js";
 import { CreateFoodDto, UpdateFoodDto } from "../dto/food.dto.js";
 
 interface FoodRequestBody {
@@ -36,7 +36,6 @@ class FoodController {
 
             const response = await this.service.getByRestaurant(restaurantId, filters);
             return httpResponse.Ok(res, response);
-
         } catch (error) {
             next(error);
         }
@@ -61,10 +60,10 @@ class FoodController {
         try {
 
             if (!req.user || !req.user.restaurant) throw new UnauthorizedError("Datos de usuario o restaurante no encontrados");
-            if (!req.body || !req.body.ingredients) throw new NotFoundError("Datos de comida no encontrados");
-
+        
             const body = req.body as FoodRequestBody;
-            
+            if (!body || !body.ingredients) throw new NotFoundError("Datos de comida no encontrados");
+
             const parsedIngredients = JSON.parse(body.ingredients) as string[];
             const parsedOptions = body.options ? JSON.parse(body.options) as FoodOption[] : [];
 
@@ -86,7 +85,6 @@ class FoodController {
 
             const response = await this.service.create(foodData);
             return httpResponse.Ok(res, response);
-
         } catch (error) {
             next(error);
         }
@@ -111,6 +109,7 @@ class FoodController {
             if (!req.user || !req.user.restaurant) throw new UnauthorizedError("Datos de usuario o restaurante no encontrados");
 
             const body = req.body as FoodRequestBody;
+
             const parsedIngredients = JSON.parse(body.ingredients) as string[];
             const parsedOptions = JSON.parse(body.options) as FoodOption[];
 
@@ -139,8 +138,10 @@ class FoodController {
         try {
             const { id } = req.params;
             if (!id) throw new NotFoundError("Datos de comida no encontrados");
+
             const userData = req.user;
             const response = await this.service.delete(id, userData);
+            
             return httpResponse.Ok(res, response);
         } catch (error) {
             next(error);

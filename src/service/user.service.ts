@@ -6,7 +6,7 @@ import { CreateUserDto } from "../dto/user.dto.js";
 import logger from "../config/logger.config.js";
 import cache from "../utils/cache.utils.js";
 
-class UserServices {
+export default class UserServices {
 
     private dao: UserDao
 

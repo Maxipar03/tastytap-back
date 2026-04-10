@@ -8,6 +8,21 @@ class RestaurantMongoDao extends MongoDao<RestaurantDB, CreateRestaurantDto> {
     constructor(model: Model<RestaurantDB>) {
         super(model);
     }
+
+    async findByLocation({ lng, lat, radiusMeters }: any) {
+        return await RestaurantModel.find({
+            location: {
+                $near: {
+                    $geometry: {
+                        type: "Point",
+                        coordinates: [lng, lat] // [Longitud, Latitud] - Regla de Oro en Mongo
+                    },
+                    $maxDistance: radiusMeters
+                }
+            }
+        })
+            .lean();
+    }
 }
 
 export const restaurantMongoDao = new RestaurantMongoDao(RestaurantModel);

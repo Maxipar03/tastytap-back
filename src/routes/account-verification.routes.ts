@@ -4,14 +4,14 @@ import { userValidationController } from "../controller/account-verification.con
 
 const router = Router();
 
-// Admin envía invitación de creacion
+// Usuario solicita validacion de email
 router.post(
     "/",
     authenticate, 
     userValidationController.createUserValidation
 );
 
-// Admin envía invitación de creacion
+// Verifica el token de validacion de email
 router.post(
     "/:id", 
     authenticate, 

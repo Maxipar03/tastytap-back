@@ -1,7 +1,7 @@
 import MongoDao from "./mongo.dao.js";
 import { Model } from "mongoose";
 import { UserValidationDB } from "../../types/account-verification.types.js";
-import { UserValidationDTO } from "../../dto/user-validations.dto.js";
+import { UserValidationDTO } from "../../dto/account-verification.dto.js";
 import { userValidationModel } from "./models/account-verification.model.js";
 
 class UserValidateMongoDao extends MongoDao<UserValidationDB, UserValidationDTO> {

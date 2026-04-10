@@ -117,7 +117,6 @@ class OrderController {
         try {
             const waiterId = req.user?.id;
             const restaurant = req.user?.restaurant;
-
             if (!restaurant) throw new NotFoundError("Datos de restaurante no encontrados");
             if (!waiterId) throw new NotFoundError("Datos de mesero no encontrados");
 

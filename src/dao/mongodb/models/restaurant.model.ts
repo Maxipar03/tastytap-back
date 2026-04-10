@@ -14,7 +14,7 @@ const openingHoursSchema = new Schema({
     periods: [
         {
             open: { type: String, required: true },
-            close: { type: String, required: true }  
+            close: { type: String, required: true }
         }
     ]
 }, { _id: false })
@@ -25,10 +25,16 @@ const restaurantSchema = new Schema<RestaurantDB>({
         required: true,
         trim: true
     },
-    address: {
-        type: String,
-        required: true,
-        trim: true
+    location: {
+        type: {
+            type: String,
+            enum: ['Point'],
+            required: true
+        },
+        coordinates: {
+            type: [Number], // [longitud, latitud]
+            required: true
+        }
     },
     openingHours: [openingHoursSchema],
     phone: {
@@ -77,4 +83,6 @@ const restaurantSchema = new Schema<RestaurantDB>({
     timestamps: true
 })
 
-export const RestaurantModel = model <RestaurantDB> ("restaurant", restaurantSchema);
+restaurantSchema.index({ location: "2dsphere" });
+
+export const RestaurantModel = model<RestaurantDB>("restaurant", restaurantSchema);

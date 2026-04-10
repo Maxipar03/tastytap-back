@@ -5,12 +5,10 @@ export interface OnboardingDB extends Document {
     user: Types.ObjectId;
     address: string;
     city: string;
-    shopType: string;
     email: string;
     statusRequest: "PENDING" | "APPROVED" | "REJECTED";
     restaurantName: string;
     phone: string;
-    estimatedTables: number;
     termsAccepted: boolean;
 }
 

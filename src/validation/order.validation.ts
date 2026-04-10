@@ -3,13 +3,9 @@ import { commonValidations } from './common.validation';
 
 const itemSchema = Joi.object({
     foodId: commonValidations.mongoId.required(),
-    foodName: Joi.string().required(),
     options: Joi.array().items(Joi.object({
-        name: Joi.string().required(),
-        values: Joi.array().items(Joi.object({
-            label: Joi.string().required(),
-            price: Joi.number().min(0).required(),
-        })).min(1).required(),
+        optionId: commonValidations.mongoId.required(),
+        valueIds: Joi.array().items(commonValidations.mongoId).min(1).required()
     })).default([]),
     price: commonValidations.positiveNumber.required(),
     quantity: Joi.number().integer().min(1).required(),
@@ -17,15 +13,9 @@ const itemSchema = Joi.object({
     status: Joi.string().valid('PENDING', 'PREPARING', 'READY', 'DELIVERED').default('PENDING'),
 });
 
-const pricingSchema = Joi.object({
-    subtotal: commonValidations.positiveNumber.required(),
-    tax: Joi.number().min(0).required(),
-    total: commonValidations.positiveNumber.required(),
-});
-
 export const createOrderSchema = Joi.object({
     items: Joi.array().items(itemSchema).min(1).required(),
-    pricing: pricingSchema.required(),
+    totalAmount: commonValidations.positiveNumber.required(),
     guestName: commonValidations.text(3, 100).required(),
     paymentMethod: Joi.string().valid('CASH', 'CARD').required(),
     restaurant: Joi.object({

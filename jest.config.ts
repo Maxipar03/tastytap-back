@@ -1,0 +1,17 @@
+export default {
+    preset: "ts-jest",
+    testEnvironment: "node",
+    extensionsToTreatAsEsm: [".ts"],
+    moduleNameMapper: {
+        "^(\\.{1,2}/.*)\\.js$": "$1",
+    },
+    transform: {
+        "^.+\\.tsx?$": ["ts-jest", { useESM: true }],
+    },
+    testMatch: [
+        "<rootDir>/tests/*.test.ts",
+        "**/tests/**/*.ts"         
+    ],
+    clearMocks: true,
+    slowTestThreshold: 20000, // Ajusta el umbral a 20 segundos
+};

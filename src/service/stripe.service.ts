@@ -6,7 +6,6 @@ import logger from "../config/logger.config.js";
 import * as Sentry from "@sentry/node";
 import Stripe from "stripe";
 import { withTransaction } from "../utils/transaction.utils.js";
-import { PaymentStatus } from "../types/order.types.js";
 
 export default class StripeService {
 
@@ -22,8 +21,6 @@ export default class StripeService {
 
             // Obtener la orden por ID
             const order = await orderService.getById(orderId);
-
-            console.log("Este es el orderId:", orderId);
 
             if (!order) {
                 logger.error({ orderId }, "Orden no encontrada para payment intent");
@@ -170,8 +167,6 @@ export default class StripeService {
             // 🏦 STRIPE CONNECT – ONBOARDING
             case "account.updated": {
                 const account = event.data.object as Stripe.Account;
-
-                console.log(account)
 
                 const completed =
                     account.details_submitted &&
