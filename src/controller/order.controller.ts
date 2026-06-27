@@ -41,6 +41,7 @@ class OrderController {
                 pricing: pricing,
                 paymentMethod: paymentMethod,
                 guestId: sessionId,
+                status: "DRAFT",
                 restaurant: restaurant.id,
                 userName: guestName,
                 clientId: user ? new Types.ObjectId(user.id) : undefined,
@@ -60,7 +61,8 @@ class OrderController {
 
     getOrdersGuest = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
         try {
-            const sessionId = req.cookies['session_id'] as string;
+            const sessionId = req.cookies['session_id'] as any;
+            console.log("SESSION ID", sessionId);
             if (!sessionId) throw new BadRequestError("Guest ID es requerido");
 
             const response = await this.service.getOrdersGuest(sessionId);
@@ -91,45 +93,37 @@ class OrderController {
             next(error);
         }
     }
-
-    updateStatusOrder = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+    
+    updateStatusOrder = async (req:Request, res: Response, next: NextFunction): Promise<Response | void> => {
         try {
-            const { id } = req.params;
-            const { paymentStatus } = req.body as UpdateOrderBody;
             const restaurant = req.user?.restaurant;
+            const {id} = req.params;
+            const { status } = req.body;
 
-            if (!restaurant || !id) throw new NotFoundError("Datos de restaurante no encontrados");
-            logger.info({ orderId: id, newStatus: paymentStatus, restaurantId: restaurant }, "Actualizando estado de orden");
+            if (!restaurant || !status || !id) throw new NotFoundError("Datos de restaurante no encontrados");
 
-            const response = await this.service.updateStatusOrder(id, paymentStatus, restaurant);
+            logger.info({ orderId: id, newStatus: status, restaurantId: restaurant }, "Actualizando estado de orden");
 
-            logger.info({ orderId: id }, "Estado de orden actualizado exitosamente");
+            const response = await this.service.updateOrderFields(id, restaurant, {status});
+
+            logger.info({ orderId: id }, "Estado de la orden actualizado exitosamente");
 
             return httpResponse.Ok(res, response);
         } catch (error) {
-            logger.error({ orderId: req.params.id, error: error }, "Error al actualizar estado de orden");
             next(error);
         }
     }
 
-
     getOrdersPaginated = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
         try {
-            const waiterId = req.user?.id;
             const restaurant = req.user?.restaurant;
             if (!restaurant) throw new NotFoundError("Datos de restaurante no encontrados");
-            if (!waiterId) throw new NotFoundError("Datos de mesero no encontrados");
 
-            const filters = OrderFiltersMapper.mapFromQuery(req.query, waiterId.toString());
+            const filters = OrderFiltersMapper.mapFromQuery(req.query);
 
             const response = await this.service.getByRestaurantId(restaurant, filters);
 
-            return httpResponse.Ok(res, {
-                orders: response?.docs || [],
-                response,
-                waiterId,
-                restaurant
-            });
+            return httpResponse.Ok(res, response);
         } catch (error) {
             next(error);
         }
@@ -140,29 +134,29 @@ class OrderController {
             const restaurant = req.user?.restaurant;
             if (!restaurant) throw new NotFoundError("Datos de restaurante no encontrados");
 
-            const response = await this.service.getByRestaurantId(restaurant, {});
+            const response = await this.service.getActiveRestaurant(restaurant);
 
-            logger.debug({ restaurantId: restaurant, ordersCount: response?.docs?.length }, "Obteniendo órdenes por restaurante");
-            return httpResponse.Ok(res, response?.docs || []);
+            logger.debug({ restaurantId: restaurant }, "Obteniendo órdenes por restaurante");
+            return httpResponse.Ok(res, response || []);
         } catch (error) {
             next(error);
         }
     };
 
-    updateStatusItems = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
-        try {
-            const { orderId, itemId } = req.params;
-            const { status } = req.body as UpdateItemStatusDto;
+    // updateStatusItems = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+    //     try {
+    //         const { orderId, itemId } = req.params;
+    //         const { status } = req.body as UpdateItemStatusDto;
 
-            if (!orderId || !itemId) throw new NotFoundError("Datos de orden no encontrados");
+    //         if (!orderId || !itemId) throw new NotFoundError("Datos de orden no encontrados");
 
-            const updatedOrder = await this.service.updateStatusItems(orderId, itemId, status)
+    //         const updatedOrder = await this.service.updateStatusItems(orderId, itemId, status)
 
-            return httpResponse.Ok(res, updatedOrder)
-        } catch (error) {
-            next(error)
-        }
-    }
+    //         return httpResponse.Ok(res, updatedOrder)
+    //     } catch (error) {
+    //         next(error)
+    //     }
+    // }
 
     getOrderDetails = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
         try {
@@ -170,6 +164,19 @@ class OrderController {
             if (!id) throw new NotFoundError("ID de orden no encontrado");
 
             const response = await this.service.getById(id, true);
+            return httpResponse.Ok(res, response);
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    getOrderDetailsClient = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+        try {
+            const { id } = req.params;
+            const guestId = req.cookies['session_id'] as string;
+            if (!id || !guestId) throw new NotFoundError("ID de orden no encontrado");
+
+            const response = await this.service.getByIdClient(id, guestId);
             return httpResponse.Ok(res, response);
         } catch (error) {
             next(error);

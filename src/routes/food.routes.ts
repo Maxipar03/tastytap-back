@@ -15,7 +15,7 @@ const upload = multer({ storage: storage });
 router.post(
     "/", 
     authenticate, 
-    checkRole(["admin", "owner"]), 
+    checkRole(["ADMIN", "OWNER"]), 
     validateRequest(validateCreateFood, "body"), 
     upload.single('image'), 
     foodController.create
@@ -32,7 +32,7 @@ router.get(
 router.get(
     "/admin", 
     authenticate, 
-    checkRole(["waiter", "admin", "owner"]), 
+    checkRole(["WAITER", "ADMIN", "OWNER"]), 
     foodController.getAllAdmin
 );
 
@@ -40,7 +40,7 @@ router.get(
 router.put(
     "/:id", 
     authenticate, 
-    checkRole(["admin", "owner"]), 
+    checkRole(["ADMIN", "OWNER"]), 
     validateRequest(validateParamsFoodId, "params"), 
     validateRequest(validateUpdateFood, "body"), 
     upload.single('image'), 
@@ -57,7 +57,7 @@ router.get(
 router.delete(
     "/:id", 
     authenticate, 
-    checkRole(["admin", "owner"]), 
+    checkRole(["ADMIN", "OWNER"]), 
     validateRequest(validateParamsFoodId, "params"), 
     foodController.delete
 );

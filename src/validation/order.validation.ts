@@ -15,7 +15,6 @@ const itemSchema = Joi.object({
 
 export const createOrderSchema = Joi.object({
     items: Joi.array().items(itemSchema).min(1).required(),
-    totalAmount: commonValidations.positiveNumber.required(),
     guestName: commonValidations.text(3, 100).required(),
     paymentMethod: Joi.string().valid('CASH', 'CARD').required(),
     restaurant: Joi.object({
@@ -43,18 +42,11 @@ export const validateDeleteItem = Joi.object({
 
 export const validateUpdateOrderStatus = Joi.object({
     status: Joi.string()
-        .valid('open', 'paid', 'cancelled')
+        .valid('READY', 'REFUNDED', 'DELIVERED')
         .required()
         .messages({
             'string.base': 'El estado debe ser texto',
             'any.only': 'Estado inválido',
             'any.required': 'El estado es obligatorio'
-        }),
-    deletionReason: Joi.when('status', {
-        is: 'cancelled',
-        then: commonValidations.text(3, 200).required().messages({
-            'any.required': 'El motivo de cancelación es obligatorio cuando se cancela una orden'
-        }),
-        otherwise: Joi.optional()
-    })
+        })
 })

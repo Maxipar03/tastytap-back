@@ -5,10 +5,10 @@ import { userMongoDao } from "../dao/mongodb/user.dao.js";
 import { orderEvents } from "../events/order.events.js";
 import { CreateOrderDto } from "../dto/order.dto.js";
 import { FoodOption } from "../types/food.types.js";
-import { OrderItemOption } from "../types/order.types.js";
-import { OrderDB, ItemStatus, CreateOrderResponse, OrderFilters, OrderItem, PaymentStatus, OrderDao } from "../types/order.types.js";
+import { OrderItemOption, OrderStatus } from "../types/order.types.js";
+import { OrderDB, CreateOrderResponse, OrderFilters, OrderItem, PaymentStatus, OrderDao } from "../types/order.types.js";
 import { CACHE_TTL, CACHE_KEYS } from "../constants/business.js";
-import { NotFoundError, BadRequestError } from "../utils/custom-error.utils.js";
+import { NotFoundError, BadRequestError, UnauthorizedError } from "../utils/custom-error.utils.js";
 import { withTransaction } from "../utils/transaction.utils.js";
 import logger from "../config/logger.config.js";
 import cache from "../utils/cache.utils.js";
@@ -81,9 +81,7 @@ export default class OrderService {
                     for (const foodOption of foodOptions) {
                         const selectedOption = item.options?.find(o => o.optionId.toString() === foodOption._id?.toString());
                         if (foodOption.required && !selectedOption) {
-                            throw new BadRequestError(
-                                `Hay una opción requerida no selecionada para "${food.name}"`
-                            );
+                            throw new BadRequestError(`Hay una opción requerida no selecionada para "${food.name}"`);
                         }
                     }
 
@@ -91,9 +89,7 @@ export default class OrderService {
                     for (const selected of item.options ?? []) {
                         const foodOption = optionsMap.get(selected.optionId.toString());
                         if (!foodOption) {
-                            throw new BadRequestError(
-                                `La opción seleccionada no existe en el producto "${food.name}"`
-                            );
+                            throw new BadRequestError(`La opción seleccionada no existe en el producto "${food.name}"`);
                         }
 
                         // Checkbox: múltiples valores, Radio: uno solo
@@ -144,7 +140,6 @@ export default class OrderService {
                         price: expectedTotalPrice,
                         options: optionsSnapshot,
                         ...(item.notes !== undefined && { notes: item.notes }),
-                        status: "PENDING",
                     };
 
                     return orderItem;
@@ -208,24 +203,35 @@ export default class OrderService {
         return await this.dao.getOrdersGuest(guestId);
     };
 
-    updateStatusOrder = async (id: string, newStatus: PaymentStatus, restaurant: string | Types.ObjectId, externalSession?: any): Promise<OrderDB | null> => {
+    updateOrderFields = async (
+        id: string,
+        restaurant: string | Types.ObjectId,
+        updates: { status?: OrderStatus; paymentStatus?: PaymentStatus },
+        externalSession?: any
+    ): Promise<OrderDB | null> => {
         const operation = async (txSession: any) => {
 
-            // Restar stock si se marca como PAID
-            if (newStatus === "PAID") {
+            if (updates.paymentStatus === "PAID") {
                 const currentOrder = await this.dao.getById(id);
-                if (!currentOrder) throw new NotFoundError("No se encontro el pedido");
+                if (!currentOrder) throw new NotFoundError("No se encontró el pedido");
 
-                await this.decreaseStock(currentOrder.items, txSession);
+                if (currentOrder.paymentStatus !== "PAID") {
+                    await this.decreaseStock(currentOrder.items, txSession);
+                }
             }
 
-            // Actualizacion en DB
-            const response = await this.dao.update(id, { paymentStatus: newStatus }, txSession);
-            if (!response) throw new NotFoundError("No se encontro el pedido");
+            const response = await this.dao.update(id, updates, txSession);
+            if (!response) throw new NotFoundError("No se encontró el pedido");
 
             const orderObj = response.toObject ? response.toObject() : response;
 
-            orderEvents.emitOrderUpdated({ orderId: orderObj._id, newStatus: newStatus || orderObj.status, order: orderObj, restaurant, timestamp: new Date() });
+            orderEvents.emitOrderUpdated({
+                orderId: orderObj._id,
+                newStatus: updates.status || orderObj.status,
+                order: orderObj,
+                restaurant,
+                timestamp: new Date()
+            });
 
             await this.invalidateOrderCache(orderObj._id.toString(), restaurant);
             return response;
@@ -234,24 +240,24 @@ export default class OrderService {
         return externalSession ? operation(externalSession) : withTransaction(operation);
     };
 
-    updateStatusItems = async (orderId: string | Types.ObjectId, itemId: string | Types.ObjectId, newStatus: ItemStatus): Promise<OrderDB | null> => {
-        try {
-            const checkStatus = newStatus === "DELIVERED" ? "READY" : undefined;
+    // updateStatusItems = async (orderId: string | Types.ObjectId, itemId: string | Types.ObjectId, newStatus: ItemStatus): Promise<OrderDB | null> => {
+    //     try {
+    //         const checkStatus = newStatus === "DELIVERED" ? "READY" : undefined;
 
-            const updatedOrder = await this.dao.updateStatusItems(orderId, itemId, newStatus, checkStatus);
-            if (!updatedOrder) throw new NotFoundError("No se encontró la orden o el item");
+    //         const updatedOrder = await this.dao.updateStatusItems(orderId, itemId, newStatus, checkStatus);
+    //         if (!updatedOrder) throw new NotFoundError("No se encontró la orden o el item");
 
-            const orderObj = updatedOrder.toObject ? updatedOrder.toObject() : updatedOrder;
+    //         const orderObj = updatedOrder.toObject ? updatedOrder.toObject() : updatedOrder;
 
-            orderEvents.emitItemUpdated({ orderId: orderObj._id.toString(), itemId: itemId.toString(), newStatus, order: orderObj, type: "item", restaurant: orderObj.restaurant });
+    //         orderEvents.emitItemUpdated({ orderId: orderObj._id.toString(), itemId: itemId.toString(), newStatus, order: orderObj, type: "item", restaurant: orderObj.restaurant });
 
-            await this.invalidateOrderCache(orderObj._id.toString(), orderObj.restaurant.toString());
-            return updatedOrder;
+    //         await this.invalidateOrderCache(orderObj._id.toString(), orderObj.restaurant.toString());
+    //         return updatedOrder;
 
-        } catch (error) {
-            throw error;
-        }
-    };
+    //     } catch (error) {
+    //         throw error;
+    //     }
+    // };
 
     getById = async (id: string | Types.ObjectId) => {
         const cacheKey = CACHE_KEYS.order(id.toString());
@@ -263,16 +269,20 @@ export default class OrderService {
         return order;
     };
 
-    getByRestaurantId = async (restaurant: string | Types.ObjectId, filters: OrderFilters) => {
-        if (filters.status === 'active') {
-            const cacheKey = CACHE_KEYS.activeOrders(restaurant.toString());
-            const cached = await cache.get<OrderDB[]>(cacheKey);
-            if (cached) return cached;
+    getByIdClient = async (id: string | Types.ObjectId, guestId: string) => {
+        const order = await this.dao.getById(id);
+        if (!order) throw new NotFoundError("Orden no encontrada");
+        if (order.guestId !== guestId) throw new UnauthorizedError("No tienes permiso para ver esta orden");
+        return order;
+    };
 
-            const orders = await this.dao.getByRestaurantId(restaurant, filters);
-            await cache.set(cacheKey, orders, CACHE_TTL.ACTIVE_ORDERS);
-            return orders;
-        }
+    getActiveRestaurant = async (restaurant: string | Types.ObjectId) => {
+        const orders = await this.dao.getActiveByRestaurant(restaurant);
+        if (!orders) throw new NotFoundError("Restaurante no encontrado");
+        return orders;
+    }
+
+    getByRestaurantId = async (restaurant: string | Types.ObjectId, filters: OrderFilters) => {
         return await this.dao.getByRestaurantId(restaurant, filters);
     };
 

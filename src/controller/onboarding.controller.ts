@@ -3,6 +3,7 @@ import { httpResponse } from "../utils/response.utils.js";
 import { BadRequestError } from "../utils/custom-error.utils.js";
 import { onboardingServices } from "../service/onboarding.service.js";
 import { OnboardingServices } from "../types/onboarding.types.js";
+import { validateParamsFoodId } from "../validation/food.validation.js";
 
 class OnboardingController {
 
@@ -16,8 +17,8 @@ class OnboardingController {
         try {
             if (!req.user) throw new BadRequestError("No se pudo obtener el usuario")
             
-            const { isValidateMail, id } = req.user
-            if (!isValidateMail) throw new BadRequestError("Debes validar tu email antes")
+            const { isVerified, id } = req.user
+            if (!isVerified) throw new BadRequestError("Debes validar tu email antes")
 
             const result = await this.service.createOnboarding(id, req.body);
             httpResponse.Ok(res, result);
@@ -51,6 +52,18 @@ class OnboardingController {
             next(error); 
         }
     };
+
+    homeData = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+        try {
+            const restaurantId = req.user?.restaurant;
+            if(!restaurantId) throw new BadRequestError("No se pudo obtener el restaurante")
+            
+            const result = await this.service.homeData(restaurantId);
+            httpResponse.Ok(res, result);
+        } catch (error) {
+            next(error);
+        }
+    }
 }
 
 export const onboardingController = new OnboardingController(onboardingServices);

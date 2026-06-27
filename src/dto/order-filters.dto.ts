@@ -1,48 +1,56 @@
 export interface OrderFiltersDto {
-    status?: string;
-    fromDate?: string;
-    toDate?: string;
-    waiter?: string;
+    fromDate: string;
+    toDate: string;
     search?: string;
     page?: number;
     limit?: number;
-    includeDetails?: boolean;
 }
 
 export class OrderFiltersMapper {
-    public static mapFromQuery(query: any, currentWaiterId: string): OrderFiltersDto & { currentWaiterId: string } {
-        const filters: OrderFiltersDto = {};
+    public static mapFromQuery(query: any): OrderFiltersDto {
+        const filters: Partial<OrderFiltersDto> = {};
 
-        // Mapeo de campos string
-        if (query.status && query.status !== 'undefined' && query.status !== '') {
-            filters.status = query.status as string;
-        }
         if (query.search && query.search !== 'undefined' && query.search !== '') {
             filters.search = query.search as string;
         }
-        if (query.fromDate && query.fromDate !== 'undefined' && query.fromDate !== '' && query.fromDate !== 'null') {
-            filters.fromDate = query.fromDate as string;
-        }
-        if (query.toDate && query.toDate !== 'undefined' && query.toDate !== '' && query.toDate !== 'null') {
-            filters.toDate = query.toDate as string;
+
+        let targetDate: Date;
+
+        if (query.date && query.date !== 'undefined' && query.date !== '' && query.date !== 'null') {
+            targetDate = new Date(query.date);
+        } else {
+            targetDate = new Date();
         }
 
-        // Mapeo de parámetros de paginación
-        if (query.page && !isNaN(Number(query.page))) {
-            filters.page = Number(query.page);
-        }
-        if (query.limit && !isNaN(Number(query.limit))) {
-            filters.limit = Number(query.limit);
-        }
-        
-        // Incluir detalles completos (populate)
-        if (query.includeDetails !== undefined) {
-            filters.includeDetails = query.includeDetails === 'true';
-        }
+        console.log("targetDate", targetDate);
+
+        // Obtener el inicio del día en UTC (00:00:00.000)
+        const startOfDay = new Date(Date.UTC(
+            targetDate.getUTCFullYear(),
+            targetDate.getUTCMonth(),
+            targetDate.getUTCDate(),
+            0, 0, 0, 0
+        ));
+        filters.fromDate = startOfDay.toISOString();
+
+        // Obtener el fin del día en UTC (23:59:59.999)
+        const endOfDay = new Date(Date.UTC(
+            targetDate.getUTCFullYear(),
+            targetDate.getUTCMonth(),
+            targetDate.getUTCDate(),
+            23, 59, 59, 999
+        ));
+        filters.toDate = endOfDay.toISOString();
+
+        console.log("filtros", startOfDay, endOfDay)
+
+        if (query.page && !isNaN(Number(query.page))) filters.page = Number(query.page);
+        if (query.limit && !isNaN(Number(query.limit))) filters.limit = Number(query.limit);
 
         return {
             ...filters,
-            currentWaiterId
+            fromDate: filters.fromDate!,
+            toDate: filters.toDate!,
         };
     }
 }

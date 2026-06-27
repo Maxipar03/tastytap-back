@@ -10,7 +10,9 @@ export interface UserDB extends Document {
     password?: string;
     role: UserRole;
     phone?: string;
-    isValidateMail: boolean;
+    isVerified: boolean;
+    verificationCode: string | null;
+    verificationCodeExpires: Date | null;
     profileImage?: string;
     orders?: Types.ObjectId[];
     restaurant?: Types.ObjectId | null;
@@ -21,11 +23,14 @@ export interface UserDB extends Document {
 
 export interface UserDao {
     getById: (id: string) => Promise<UserDB | null>;
+    update: (id: string, userData: any) => Promise<UserDB | null>;
     getByEmail: (email: string) => Promise<UserDB | null>;
     create: (userData: CreateUserDto) => Promise<UserDB>;
 }
 
 export interface UserService{
     register: (userData: any) => Promise<UserDB>;
+    verify: (id: string, code: string) => Promise<UserDB>;
     login: (email: string, password: string) => Promise<UserDB>;
+    resendVerification: (id: string) => Promise<void>;
 }

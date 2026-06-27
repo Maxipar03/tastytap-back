@@ -16,19 +16,20 @@ router.post(
     monitorOrderSentry, 
     rateLimitSensitive, 
     authenticateOptional, 
-    validateRequest(createOrderSchema, "body"), orderController.create
+    validateRequest(createOrderSchema, "body"), 
+    orderController.create
 );
 
 // Actualizacion de estado de items
-router.put(
-    "/:orderId/items/:itemId/status", 
-    monitorOrderSentry, 
-    rateLimitSensitive, 
-    authenticate, 
-    checkRole(["waiter", "admin", "chef", "owner"]), 
-    validateRequest( validateUpdateItemStatus, "params" ), 
-    orderController.updateStatusItems
-);
+// router.put(
+//     "/:orderId/items/:itemId/status", 
+//     monitorOrderSentry, 
+//     rateLimitSensitive, 
+//     authenticate, 
+//     checkRole(["WAITER", "ADMIN", "CHEF", "OWNER"]), 
+//     validateRequest( validateUpdateItemStatus, "params" ), 
+//     orderController.updateStatusItems
+// );
 
 // Envio de recibo pedido
 router.post(
@@ -57,7 +58,7 @@ router.get(
 router.get(
     "/paginate", 
     authenticate, 
-    checkRole(["waiter", "admin", "chef", "owner"]), 
+    checkRole(["WAITER", "ADMIN", "CHEF", "OWNER"]), 
     orderController.getOrdersPaginated
 );
 
@@ -65,7 +66,7 @@ router.get(
 router.get(
     "/active", 
     authenticate, 
-    checkRole(["waiter", "admin", "chef", "owner"]), 
+    checkRole(["WAITER", "ADMIN", "CHEF", "OWNER"]), 
     orderController.getActiveOrders
 );
 
@@ -75,7 +76,7 @@ router.put(
     monitorOrderSentry, 
     rateLimitSensitive,
     authenticate, 
-    checkRole(["waiter", "admin", "chef", "owner"]), 
+    checkRole(["WAITER", "ADMIN", "CHEF", "OWNER"]), 
     validateRequest(validateIdOrder,"params"), 
     validateRequest(validateUpdateOrderStatus, "body"), 
     orderController.updateStatusOrder
@@ -85,7 +86,13 @@ router.put(
 router.get(
     "/:id/details", 
     authenticate, 
-    checkRole(["waiter", "admin", "chef", "owner"]), 
+    checkRole(["WAITER", "ADMIN", "CHEF", "OWNER"]), 
+    orderController.getOrderDetails
+);
+
+// Obtencion de detalle de orden
+router.get(
+    "/:id/details/public", 
     orderController.getOrderDetails
 );
 

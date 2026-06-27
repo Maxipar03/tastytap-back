@@ -20,5 +20,6 @@ export interface OnboardingDao {
 export interface OnboardingServices {
     createOnboarding: (id: Types.ObjectId, body: any) => Promise<OnboardingDB>;
     approveOnboarding: (id: string) => Promise<OnboardingDB | null>;
+    homeData: (restaurantId: Types.ObjectId) => Promise<any>;
     rejectOnboarding: (id: string) => Promise<OnboardingDB | null>;
 }

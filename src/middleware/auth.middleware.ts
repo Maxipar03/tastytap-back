@@ -32,7 +32,7 @@ const createAuthMiddleware = (isOptional: boolean = false) => {
         req.user = {
             id: userData.id,
             name: userData.name,
-            isValidateMail: userData.isValidateMail,
+            isVerified: userData.isVerified,
             restaurant: userData.restaurant,
             role: userData.role,
             email: userData.email,

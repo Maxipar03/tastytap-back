@@ -90,4 +90,20 @@ export default class MongoDao<T, C> {
             throw error
         }
     };
+
+    exists = async (filter: Partial<T>): Promise<boolean> => {
+        try {
+            Sentry.addBreadcrumb({
+                category: 'database',
+                message: 'Executing exists query',
+                data: { collection: this.model.collection.name, filter }
+            });
+
+            const result = await this.model.exists(filter as any);
+
+            return !!result;
+        } catch (error) {
+            throw error
+        }
+    };
 }

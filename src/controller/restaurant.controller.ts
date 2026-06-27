@@ -5,6 +5,7 @@ import { NextFunction, Request, Response } from "express";
 import { httpResponse } from "../utils/response.utils.js";
 import { NotFoundError, UnauthorizedError, BadRequestError } from "../utils/custom-error.utils.js";
 import logger from "../config/logger.config.js";
+import { CreateRestaurantDto } from "../dto/restaurant.dto.js";
 
 class RestaurantController {
 
@@ -26,16 +27,29 @@ class RestaurantController {
         }
     };
 
+    getByIdUser = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+        try {
+            const { restaurantId } = req.params;
+            if (!restaurantId) throw new NotFoundError("Datos de restaurante no encontrados");
+
+            const response = await this.service.getById(restaurantId.toString());
+            return httpResponse.Ok(res, response);
+        } catch (error) {
+            next(error);
+        }
+    };
+
     getNearbyRestaurants = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
         try {
-            const { lat, lng, radius } = req.query;
+            const { lat, lng, radius, name } = req.query;
 
             const clientIp = (req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress || '';
 
             const restaurants = await this.service.discoverRestaurants({
                 lat: lat ? Number(lat) : undefined,
                 lng: lng ? Number(lng) : undefined,
-                radius: radius ? Number(radius) : 5000, 
+                radius: radius ? Number(radius) : 5000,
+                name: name as string,
                 ip: clientIp,
             });
 
@@ -47,7 +61,7 @@ class RestaurantController {
 
     update = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
         try {
-            const { id } = req.params;
+            const id = req.user?.restaurant?.toString();
             if (!id) throw new NotFoundError("Datos de restaurante no encontrados")
 
             logger.info({ restaurantId: id, userId: req.user?.id }, "Actualizando restaurante");
@@ -57,11 +71,14 @@ class RestaurantController {
                 ? JSON.parse(body.openingHours) as OpeningHour[]
                 : [];
 
-            const updateData: Partial<RestaurantDB & { file?: Express.Multer.File }> = {
+            const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+
+            const updateData: any = {
                 description: body.description,
                 phone: body.phone,
                 openingHours: parsedOpeningHours,
-                ...(req.file && { logo: req.file })
+                logoFile: files?.logo ? files.logo[0] : undefined, // El archivo va aparte
+                coverFile: files?.coverImage ? files.coverImage[0] : undefined
             };
 
             const response = await this.service.update(id, updateData);
@@ -109,6 +126,36 @@ class RestaurantController {
             next(error);
         }
     };
+
+    create = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+        try {
+
+            if (!req.user?.id) throw new BadRequestError("Usuario no encontrado");
+
+            const { name, address, description, phone, type, lat, lng, termsAccepted } = req.body;
+
+            if (!termsAccepted) throw new BadRequestError("Debe aceptar los terminos y condiciones");
+
+            const restaurantData: CreateRestaurantDto = {
+                name,
+                address,
+                description,
+                phone,
+                type,
+                ownerId: req.user.id,
+                location: {
+                    type: "Point",
+                    coordinates: [Number(lng), Number(lat)]
+                }
+            };
+
+            const response = await this.service.create(restaurantData, req.user.id);
+            return httpResponse.Ok(res, response);
+        } catch (error) {
+            console.log(error);
+            next(error);
+        }
+    }
 
 }
 

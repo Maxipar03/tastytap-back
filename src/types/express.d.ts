@@ -4,7 +4,7 @@ import { JwtPayload } from "jsonwebtoken";
 export interface UserPayload {
     [x: string]: ObjectId;
     id: Types.ObjectId;
-    isValidateMail: boolean;
+    isVerified: boolean;
     name: string;
     email: string;
     role: string;

@@ -76,7 +76,7 @@ app
             credentials: true,
             origin: function (origin, callback) {
                 if (!origin) return callback(null, true);
-                
+
                 const allowedOrigins = [
                     "https://tastytap.net",
                     "https://panel.tastytap.net",

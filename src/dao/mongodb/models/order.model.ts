@@ -50,11 +50,6 @@ const OrderItemSchema = new Schema<OrderItem>({
         type: String,
         trim: true,
     },
-    status: {
-        type: String,
-        enum: ["PENDING", "PREPARING", "READY", "DELIVERED", "CANCELLED"],
-        default: "PENDING",
-    },
 });
 
 const OrderPricingSchema = new Schema<OrderPricing>({
@@ -67,6 +62,12 @@ const OrderSchema = new Schema<OrderDB>({
     items: {
         type: [OrderItemSchema],
         default: []
+    },
+    status: {
+        type: String,
+        enum: ["DRAFT", "PENDING", "COMPLETED", "CANCELLED"],
+        default: "DRAFT",
+        index: true
     },
     restaurant: {
         type: Schema.Types.ObjectId,

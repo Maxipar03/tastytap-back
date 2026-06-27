@@ -29,7 +29,7 @@ export default class UserValidationsService {
 
             const user = await userMongoDao.getById(userId);
             if (!user) throw new BadRequestError("No se encontró el usuario a validar");
-            if (user.isValidateMail) throw new BadRequestError("El usuario ya se encuentra validado");
+            if (user.isVerified) throw new BadRequestError("El usuario ya se encuentra validado");
 
             const data = {
                 user: userId,
@@ -50,7 +50,7 @@ export default class UserValidationsService {
             const validation = await this.getByToken(token);
             if (validation?.used || !validation) throw new BadRequestError("El token no es valido");
 
-            await userMongoDao.update(validation.user, {isValidateMail: true});
+            await userMongoDao.update(validation.user, {isVerified: true});
             const data = this.dao.update(validation._id, {used: true});
             return data;
         } catch (error) {

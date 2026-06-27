@@ -32,7 +32,7 @@ const registerOrLogin = async (accessToken: string, refreshToken: string, profil
             email,
             password: null,
             isGoogle: true,
-            isValidateMail: true,
+            isVerified: true,
             profileImage: profile._json.picture || ""
         });
 

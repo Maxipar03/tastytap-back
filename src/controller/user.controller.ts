@@ -1,12 +1,13 @@
 import { userService } from "../service/user.service.js";
 import { UserService } from "../types/user.types.js";;
 import { Request, Response, NextFunction } from "express";
-import { BadRequestError } from "../utils/custom-error.utils.js";
+import { BadRequestError, UnauthorizedError } from "../utils/custom-error.utils.js";
 import { httpResponse } from "../utils/response.utils.js";
 import { createUserPayload, generateToken } from "../utils/auth.utils.js";
 import { clearCookieUser, setCookieUser } from "../utils/cookies.utils.js";
 import logger from "../config/logger.config.js";
 import { CreateUserDto, LoginUserDto } from "../dto/user.dto.js";
+import { Types } from "mongoose";
 
 class UserController {
 
@@ -36,6 +37,7 @@ class UserController {
 
     register = async (req: Request, res: Response, next: NextFunction) => {
         try {
+            console.log(req.body)
             const body = req.body as CreateUserDto;
             const { email } = body;
             logger.info({ email, ip: req.ip }, "Intento de registro de usuario");
@@ -68,6 +70,7 @@ class UserController {
     login = async (req: Request, res: Response, next: NextFunction) => {
         try {
             const body = req.body as LoginUserDto;
+            console.log(body)
             const { email, password } = body;
             logger.info({ email, ip: req.ip }, "Intento de inicio de sesion");
 
@@ -92,6 +95,37 @@ class UserController {
             next(error);
         }
     }
+
+    verify = async (req: Request, res: Response, next: NextFunction) => {
+        try {
+            const user = req.user;
+            const { code } = req.body;
+            logger.info({ userId: user?.id, email: user?.email }, "Intento de verificacion de usuario");
+
+            if (!user?.id) throw new UnauthorizedError("Usuario no autenticado");
+            const userIdStr = user.id.toString();
+
+            const userVerified = await this.service.verify(userIdStr, code);
+            logger.info({ userId: user?.id, email: user?.email }, "Verificacion de usuario exitosa");
+
+            return httpResponse.Ok(res, userVerified);
+        } catch (error) {
+            logger.warn({ userId: req.user?.id, email: req.user?.email, error: error }, "Error en verificacion de usuario");
+            next(error);
+        }
+    }
+
+    resendVerification = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+        try {
+            const user = req.user;
+            if (!user?.id) throw new BadRequestError("No se pudo obtener el usuario")
+
+            await this.service.resendVerification(user.id.toString());
+            httpResponse.Ok(res, { message: "Email reenviado" });
+        } catch (error) {
+            next(error);
+        }
+    };
 }
 
 export const userController = new UserController(userService)

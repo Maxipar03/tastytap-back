@@ -1,5 +1,7 @@
 import { restaurantMongoDao } from "../dao/mongodb/restaurant.dao.js";
-import { RestaurantDao, RestaurantDB, CreateRestaurantResponse } from "../types/restaurant.types.js";
+import { categoryMongoDao } from "../dao/mongodb/category.dao.js";
+import { foodMongoDao } from "../dao/mongodb/food.dao.js";
+import { RestaurantDao, RestaurantDB } from "../types/restaurant.types.js";
 import { CreateRestaurantDto } from "../dto/restaurant.dto.js";
 import { uploadToCloudinary } from "../utils/cloudinary.utils.js";
 import config from "../config/env.config.js";
@@ -16,7 +18,7 @@ export default class RestaurantService {
         this.dao = dao;
     }
 
-    create = async (body: CreateRestaurantDto, userId: Types.ObjectId): Promise<CreateRestaurantResponse> => {
+    create = async (body: CreateRestaurantDto, userId: Types.ObjectId): Promise<RestaurantDB> => {
         try {
 
             const account = await stripe.accounts.create({
@@ -31,21 +33,25 @@ export default class RestaurantService {
 
             const restaurantData = {
                 ...body,
-                stripeAccountId: account.id
+                stripeAccountId: account.id,
+                status: "PENDING"
             };
+
             const restaurant = await this.dao.create(restaurantData);
 
-            const accountLink = await stripe.accountLinks.create({
-                account: account.id,
-                refresh_url: `${config.FRONT_ENDPOINT}/onboarding/refresh`,
-                return_url: `${config.FRONT_ENDPOINT}/dashboard`,
-                type: "account_onboarding",
-            });
+            // const accountLink = await stripe.accountLinks.create({
+            //     account: account.id,
+            //     refresh_url: `${config.FRONT_ENDPOINT}/onboarding/refresh`,
+            //     return_url: `${config.FRONT_ENDPOINT}/dashboard`,
+            //     type: "account_onboarding",
+            // });
 
             await userMongoDao.update(userId.toString(), { role: "OWNER", restaurant: restaurant._id });
             await cache.del(CACHE_KEYS.restaurants());
 
-            return { _id: restaurant._id, restaurant, onboardingUrl: accountLink.url };
+            // return { _id: restaurant._id, restaurant, onboardingUrl: accountLink.url };
+
+            return restaurant;
 
         } catch (error: any) {
             console.error("❌ Error creando restaurante con Stripe:", error);
@@ -53,10 +59,11 @@ export default class RestaurantService {
         };
     };
 
-    async discoverRestaurants(params: { lat?: number | undefined, lng?: number | undefined, radius: number, ip: string }) {
+    async discoverRestaurants(params: { lat?: number | undefined, lng?: number | undefined, radius: number, name?: string, ip: string }) {
         let searchLat = params.lat;
         let searchLng = params.lng;
         let method = 'GPS';
+        let searchName = params.name;
 
         // Si no hay coordenadas, fallback a IP
         if (!searchLat || !searchLng) {
@@ -86,6 +93,7 @@ export default class RestaurantService {
             lng: searchLng!,
             lat: searchLat!,
             radiusMeters: params.radius,
+            ...(searchName !== undefined && { name: searchName })
         });
 
         return {
@@ -105,24 +113,52 @@ export default class RestaurantService {
         return restaurants;
     };
 
-    getById = async (id: string): Promise<RestaurantDB | null> => {
+    getById = async (id: string): Promise<any | null> => {
         const cacheKey = CACHE_KEYS.restaurant(id);
-        const cached = await cache.get<RestaurantDB>(cacheKey);
-        if (cached) return cached;
+        let restaurant = await cache.get<RestaurantDB>(cacheKey);
 
-        const restaurant = await this.dao.getById(id);
-        if (restaurant) await cache.set(cacheKey, restaurant, CACHE_TTL.RESTAURANT);
-        return restaurant;
+        if (!restaurant) {
+            restaurant = await this.dao.getById(id);
+            if (restaurant) {
+                await cache.set(cacheKey, restaurant, CACHE_TTL.RESTAURANT);
+            }
+        }
+
+        if (!restaurant) return null;
+
+        const [hasCategories, hasProducts] = await Promise.all([
+            categoryMongoDao.exists({ restaurant: new Types.ObjectId(id) }),
+            foodMongoDao.exists({ restaurant: new Types.ObjectId(id) })
+        ]);
+
+        console.log(restaurant)
+
+        return {
+            ...restaurant,
+            onboarding: {
+                hasLogo: !!restaurant.logo,
+                hasCover: !!restaurant.coverImage,
+                hasCategories: !!hasCategories,
+                hasProducts: !!hasProducts,
+                isStripeConnected: restaurant.stripeStatus === 'ACTIVE',
+            }
+        };
     };
 
-    update = async (id: string, body: Partial<RestaurantDB & { file?: Express.Multer.File }>): Promise<RestaurantDB | null> => {
-        let imageUrl: string | undefined;
-        if (body.file) imageUrl = await uploadToCloudinary(body.file);
+    update = async (id: string, body: any): Promise<RestaurantDB | null> => {
+        const { logoFile, coverFile, ...restOfData } = body;
 
-        const updateData = {
-            ...body,
-            ...(imageUrl && { logo: imageUrl })
-        };
+        // Este objeto sí será estrictamente lo que la DB espera (Partial<RestaurantDB>)
+        const updateData = { ...restOfData };
+
+        // 3. Subimos a Cloudinary y asignamos SOLO el string de la URL
+        if (logoFile) {
+            updateData.logo = await uploadToCloudinary(logoFile);
+        }
+
+        if (coverFile) {
+            updateData.coverImage = await uploadToCloudinary(coverFile);
+        }
 
         const result = await this.dao.update(id, updateData);
         await cache.del(CACHE_KEYS.restaurant(id));

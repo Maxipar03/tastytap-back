@@ -50,4 +50,17 @@ router.get(
     userController.googleResponse
 );
 
+router.post(
+    "/verify",
+    rateLimitStrict,
+    authenticate,
+    userController.verify
+);
+
+router.post(
+    "/resend-verification",
+    authenticate,
+    userController.resendVerification
+)
+
 export default router;

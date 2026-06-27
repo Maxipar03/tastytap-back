@@ -11,7 +11,7 @@ const router = Router();
 router.post(
     "/", 
     authenticate, 
-    checkRole(["admin", "owner"]),
+    checkRole(["ADMIN", "OWNER"]),
     validateRequest(RestaurantRequestValidation, "body"), 
     onboardingController.createOnboarding
 );
@@ -20,9 +20,16 @@ router.post(
 router.put(
     "/approve/:id", 
     authenticate, 
-    checkRole(["admin", "owner"]), 
+    checkRole(["ADMIN", "OWNER"]), 
     validateRequest(RestaurantRequestValidationUpdate, "params"), 
     onboardingController.approveOnboarding
+);
+
+router.get(
+    "/home",
+    authenticate,
+    checkRole(["ADMIN", "OWNER", "USER"]),
+    onboardingController.homeData
 );
 
 export default router;

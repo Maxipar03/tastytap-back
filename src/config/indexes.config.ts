@@ -24,7 +24,7 @@ export const createIndexes = async (): Promise<void> => {
         await UserModel.collection.createIndex({ restaurant: 1, role: 1 });
 
         // RESTAURANT - Email único
-        await RestaurantModel.collection.createIndex({ email: 1 }, { unique: true });
+        await RestaurantModel.collection.createIndex({ location: "2dsphere" });
 
         // CATEGORIES - Por restaurant
         await CategoryModel.collection.createIndex({ restaurant: 1 });

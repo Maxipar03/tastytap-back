@@ -8,6 +8,8 @@ export const validateRequest = (schema: Joi.Schema, source: 'body' | 'params' | 
 
         if (error) {
             const message = error.details.map(detail => detail.message).join(', ');
+            console.error("❌ Error de validación en:", source);
+            console.error(JSON.stringify(error, null, 2));
             return next(new BadRequestError(message));
         }
         next();

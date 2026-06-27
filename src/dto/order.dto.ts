@@ -1,10 +1,11 @@
-import { OrderItem, PaymentMethod, OrderPricing } from "../types/order.types.js";
+import { OrderItem, PaymentMethod, OrderPricing, OrderStatus } from "../types/order.types.js";
 import { Types } from "mongoose";
 
 export interface CreateOrderDto {
     items: CreateOrderItems[];
     restaurant: Types.ObjectId;
     guestId: string;
+    status: OrderStatus;
     clientId?: Types.ObjectId | undefined;
     userName: string;
     pricing: OrderPricing;
@@ -19,7 +20,6 @@ export interface OrderItemOption {
 
 export interface CreateOrderItems {
     foodId: Types.ObjectId;
-    foodName: string;
     quantity: number;
     price: number;
     options?: OrderItemOption[];
@@ -29,10 +29,10 @@ export interface CreateOrderItems {
 
 export interface CreateOrderBodyDto {
     items: CreateOrderItems[];
-    pricing: OrderPricing;
     guestName: string;
     paymentMethod: PaymentMethod;
     restaurant: { id: Types.ObjectId };
+    pricing: OrderPricing;
 }
 
 export interface UpdateOrderBody {

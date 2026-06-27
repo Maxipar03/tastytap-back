@@ -91,9 +91,9 @@ export default class FoodService {
         }
     };
 
-    getByRestaurant = async (restaurant: string | Types.ObjectId, filter?: MenuFiltersDto): Promise<PaginateResult<FoodDB>> => {
+    getByRestaurant = async (restaurant: string | Types.ObjectId, filter?: MenuFiltersDto): Promise<FoodDB[]> => {
         const cacheKey = `menu:${restaurant}:${JSON.stringify(filter || {})}`;
-        const cached = await cache.get<PaginateResult<FoodDB>>(cacheKey);
+        const cached = await cache.get<FoodDB[]>(cacheKey);
         if (cached) return cached;
 
         const foods = await this.dao.getByRestaurant(restaurant, filter || {});

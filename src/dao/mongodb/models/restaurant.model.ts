@@ -25,6 +25,11 @@ const restaurantSchema = new Schema<RestaurantDB>({
         required: true,
         trim: true
     },
+    ownerId: {
+        type: Schema.Types.ObjectId,
+        ref: "user",
+        required: true
+    },
     location: {
         type: {
             type: String,
@@ -36,20 +41,25 @@ const restaurantSchema = new Schema<RestaurantDB>({
             required: true
         }
     },
+    address: {
+        type: String,
+        required: true,
+        trim: true
+    },
+    type:{
+        type: String,
+        required: true,
+        trim: true
+    },
+    status:{
+        type: String,
+        enum: ["PENDING", "ACTIVE", "INACTIVE"],
+        default: "PENDING"
+    },
     openingHours: [openingHoursSchema],
     phone: {
         type: String,
         trim: true
-    },
-    email: {
-        type: String,
-        unique: true,
-        validate: {
-            validator: (email: string) => {
-                return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-            },
-            message: 'Email inválido'
-        }
     },
     description: {
         type: String,
@@ -72,6 +82,10 @@ const restaurantSchema = new Schema<RestaurantDB>({
         ref: "food"
     }],
     logo: {
+        type: String,
+        trim: true
+    },
+    coverImage: {
         type: String,
         trim: true
     },

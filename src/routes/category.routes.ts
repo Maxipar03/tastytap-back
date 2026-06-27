@@ -11,7 +11,7 @@ const router = Router();
 router.get(
     "/", 
     authenticate, 
-    checkRole(["admin", "owner"]), 
+    checkRole(["ADMIN", "OWNER"]), 
     categoryController.getByAdmin
 );
 
@@ -19,7 +19,7 @@ router.get(
 router.post(
     "/", 
     authenticate, 
-    checkRole(["admin", "owner"]), 
+    checkRole(["ADMIN", "OWNER"]), 
     validateRequest(createCategorySchema, "body"), 
     categoryController.create
 );
@@ -28,7 +28,7 @@ router.post(
 router.put(
     "/:id", 
     authenticate, 
-    checkRole(["admin", "owner"]), 
+    checkRole(["ADMIN", "OWNER"]), 
     validateRequest(updateCategoryParamsSchema, "params"), 
     validateRequest(updateCategorySchema, "body"), 
     categoryController.update
@@ -38,7 +38,7 @@ router.put(
 router.delete(
     "/:id", 
     authenticate, 
-    checkRole(["admin", "owner"]), 
+    checkRole(["ADMIN", "OWNER"]), 
     validateRequest(deleteCategorySchema, "params"), 
     categoryController.delete
 );

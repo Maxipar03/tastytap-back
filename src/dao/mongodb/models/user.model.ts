@@ -14,7 +14,7 @@ const UserSchema = new Schema <UserDB> ({
         trim: true,
         lowercase: true
     },
-    isValidateMail: {
+    isVerified: {
         type: Boolean,
         default: false
     },
@@ -48,6 +48,12 @@ const UserSchema = new Schema <UserDB> ({
     restaurant: {
         type: Schema.Types.ObjectId,
         ref: "restaurant"
+    },
+    verificationCode: {
+        type: String
+    },
+    verificationCodeExpires: {
+        type: Date
     },
     active: {
         type: Boolean,

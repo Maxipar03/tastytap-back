@@ -2,9 +2,9 @@ import MongoDao from "./mongo.dao.js";
 import { OrderModel } from "./models/order.model.js";
 import { OrderDB, OrderFilters } from "../../types/order.types.js";
 import { CreateOrderDto } from "../../dto/order.dto.js";
-import { BadRequestError } from "../../utils/custom-error.utils.js";
 import { Model, Types } from "mongoose";
 import * as Sentry from "@sentry/node";
+import { OrderFiltersDto } from "../../dto/order-filters.dto.js";
 
 class OrderMongoDao extends MongoDao<OrderDB, CreateOrderDto> {
     constructor(model: Model<OrderDB>) {
@@ -48,32 +48,49 @@ class OrderMongoDao extends MongoDao<OrderDB, CreateOrderDto> {
         return updatedOrder as OrderDB | null;
     };
 
-    getByRestaurantId = async (restaurant: string | Types.ObjectId, filters: OrderFilters & { page?: number; limit?: number }): Promise<any> => {
+    getByRestaurantActive = async (restaurant: string | Types.ObjectId): Promise<OrderDB[]> => {
+
         Sentry.addBreadcrumb({
             category: 'database',
             message: 'Orders query by restaurant (paginated)',
+            data: {
+                restaurantId: restaurant.toString()
+            }
+        });
+
+        const query: any = { restaurant: restaurant };
+
+        query.status = { $ne: "completed" };
+        return (await this.model.find(query).lean()) as OrderDB[];
+    };
+
+    getByRestaurantId = async (
+        restaurant: string | Types.ObjectId,
+        filters: OrderFiltersDto & { page?: number; limit?: number }
+    ): Promise<any> => {
+
+        Sentry.addBreadcrumb({
+            category: 'database',
+            message: 'Orders query by restaurant (date & search)',
             data: {
                 restaurantId: restaurant.toString(),
                 filterKeys: Object.keys(filters)
             }
         });
 
-        const query: any = { restaurant: restaurant };
+        console.log(filters.toDate, filters.fromDate);
 
-        if (filters.status) query.status = filters.status;
-
-        if (filters.fromDate || filters.toDate) {
-            query.createdAt = {};
-            if (filters.fromDate) {
-                query.createdAt.$gte = new Date(filters.fromDate);
+        // 1. Filtros base obligatorios (Restaurante, Estados de pago y Rango de Fecha del día)
+        const query: any = {
+            restaurant: restaurant,
+            paymentStatus: { $in: ['PAID', 'REFOUNDED'] },
+            createdAt: {
+                $gte: new Date(filters.fromDate), // Viene del Mapper (00:00:00.000Z)
+                $lte: new Date(filters.toDate)    // Viene del Mapper (23:59:59.999Z)
             }
-            if (filters.toDate) {
-                const endOfDay = new Date(filters.toDate);
-                endOfDay.setHours(23, 59, 59, 999);
-                query.createdAt.$lte = endOfDay;
-            }
-        }
+        };
 
+        // 2. Filtro por Search (Opcional - ID, usuario o items)
         if (filters.search) {
             const searchConditions = [];
 
@@ -88,6 +105,7 @@ class OrderMongoDao extends MongoDao<OrderDB, CreateOrderDto> {
             query.$or = searchConditions;
         }
 
+        // 3. Configuración de la paginación
         const options: any = {
             page: filters.page || 1,
             limit: filters.limit || 5,
@@ -95,9 +113,24 @@ class OrderMongoDao extends MongoDao<OrderDB, CreateOrderDto> {
             lean: true
         };
 
+        // 4. Ejecución de la consulta paginada
         const results = await (this.model as any).paginate(query, options);
 
         return results;
+    };
+
+    getActiveByRestaurant = async (restaurant: string | Types.ObjectId) => {
+        Sentry.addBreadcrumb({
+            category: 'database',
+            message: 'Orders query by restaurant (paginated)',
+            data: {
+                restaurantId: restaurant.toString(),
+            }
+        });
+
+        const query: any = { restaurant: restaurant };
+        query.status = { $in: ["PENDING", "READY", "DELIVERED"] };
+        return (await this.model.find(query).sort({ createdAt: -1 }).lean()) as OrderDB[];
     };
 }
 

@@ -15,8 +15,6 @@ export const registerUserSchema = Joi.object({
     name,
     email: commonValidations.email.required(),
     password,
-    phone: Joi.string().optional().allow(null, ''),
-    profileImage: Joi.string().optional().allow(null, ''),
 });
 
 export const loginUserSchema = Joi.object({

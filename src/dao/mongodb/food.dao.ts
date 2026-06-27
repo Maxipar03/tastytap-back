@@ -50,16 +50,14 @@ class FoodMongoDao extends MongoDao<FoodDB, CreateFoodDto> {
         );
     }
 
-    async getByRestaurant(restaurant: string | Types.ObjectId, filters: MenuFiltersDto = {}): Promise<PaginateResult<FoodDB>> {
+    async getByRestaurant(restaurant: string | Types.ObjectId, filters: MenuFiltersDto = {}): Promise<FoodDB[]> {
         const menuMatch = this.buildMenuQuery(filters);
-        const options = {
-            page: filters.page || 1,
-            limit: filters.limit || 10,
-            lean: true
-        };
 
-        return await (this.model as any).paginate({ restaurant: restaurant, ...menuMatch }, options);
+        return await this.model.find({
+            restaurant: restaurant,
+            ...menuMatch
+        }).lean();
     }
 }
 
-export const foodMongoDao = new FoodMongoDao(FoodModel)
+    export const foodMongoDao = new FoodMongoDao(FoodModel)

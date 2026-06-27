@@ -142,14 +142,14 @@ export default class StripeService {
                             const order = await orderService.getById(orderId);
                             if (!order || order.paymentStatus === "PAID") return;
 
-                            await orderService.updateStatusOrder(
+                            await orderService.updateOrderFields(
                                 orderId,
-                                "PAID",
                                 order.restaurant.toString(),
+                                { paymentStatus: "PAID", status: "PENDING" },
                                 session
                             );
 
-                            logger.info({ orderId }, "Orden marcada como pagada");
+                            logger.info({ orderId }, "Orden marcada como pagada y pendiente");
                         });
 
                         break;

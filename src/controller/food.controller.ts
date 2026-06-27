@@ -35,6 +35,7 @@ class FoodController {
             const filters: MenuFiltersDto = MenuFiltersMapper.mapFromQuery(req.query);
 
             const response = await this.service.getByRestaurant(restaurantId, filters);
+            console.log(response)
             return httpResponse.Ok(res, response);
         } catch (error) {
             next(error);

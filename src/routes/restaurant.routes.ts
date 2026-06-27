@@ -15,7 +15,7 @@ const upload = multer({ storage: storage });
 router.get(
     "/",
     authenticate, 
-    checkRole(["admin", "owner"]),
+    checkRole(["ADMIN", "OWNER"]),
     restaurantController.getById
 );
 
@@ -25,11 +25,17 @@ router.get(
     restaurantController.getNearbyRestaurants
 );
 
+// Obtener resataurante por ID
+router.get(
+    "/menu/:restaurantId",
+    restaurantController.getByIdUser
+);
+
 // Obtener usuarios de resaurante
 router.get(
     "/users", 
     authenticate, 
-    checkRole(["admin", "owner"]), 
+    checkRole(["ADMIN", "OWNER"]), 
     restaurantController.getRestaurantUsers
 );
 
@@ -37,7 +43,7 @@ router.get(
 router.get(
     "/invitations", 
     authenticate, 
-    checkRole(["admin", "owner"]), 
+    checkRole(["ADMIN", "OWNER"]), 
     restaurantController.getRestaurantInvitations
 );
 
@@ -45,19 +51,29 @@ router.get(
 router.get(
     "/create-onboarding", 
     authenticate, 
-    checkRole(["admin", "owner"]), 
+    checkRole(["ADMIN", "OWNER"]), 
     restaurantController.createOnboarding
 );
 
 // Actualizacion de restaurante
 router.put(
-    "/:id",
+    "/",
     authenticate, 
-    checkRole(["admin", "owner"]), 
-    validateRequest(validateUpdateRestaurant, "body"), 
-    validateRequest(validateObjectId, "params"), 
-    upload.single('logo'), 
+    checkRole(["ADMIN", "OWNER"]), 
+    validateRequest(validateUpdateRestaurant, "body"),
+    upload.fields([
+        { name: 'logo', maxCount: 1 },
+        { name: 'coverImage', maxCount: 1 }
+    ]), 
     restaurantController.update
 );
+
+router.post(
+    "/",
+    authenticate,
+    validateRequest(validateCreateRestaurant, "body"),
+    restaurantController.create
+);
+
 
 export default router
