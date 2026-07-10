@@ -1,12 +1,10 @@
 import { Response, CookieOptions } from "express";
 
-const isProd = process.env.NODE_ENV === "production";
-
 // Configuracion base de todas las cookies
 const baseCookieOptions: CookieOptions = {
     httpOnly: true,
-    secure: isProd,
-    sameSite: isProd ? "none" : "lax",
+    secure: true,
+    sameSite: "lax",
 };
 
 // Crear y asignar cookie
