@@ -16,6 +16,9 @@
     "noUncheckedIndexedAccess": true,
     "exactOptionalPropertyTypes": true,
 
+    "jsx": "react-jsx",
+    "moduleResolution": "NodeNext",
+
     "strict": true,
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
@@ -25,6 +28,6 @@
     "resolveJsonModule": true,
     "isolatedModules": true
   },
-  "include": ["src/**/*", "__test__/**/*"],
+  "include": ["src/**/*", "__test__/**/*", "src/emails"],
   "exclude": ["node_modules", "dist"]
 }

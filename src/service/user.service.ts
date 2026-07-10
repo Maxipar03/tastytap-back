@@ -89,7 +89,20 @@ export default class UserServices {
             const otpCode = randomInt(100000, 999999).toString();
             const otpExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutos
 
-            await sendVerificationEmail(email, otpCode)
+            try {
+                await sendVerificationEmail(email, otpCode);
+                logger.info({ email }, "Email de verificacion enviado exitosamente");
+            } catch (error: any) {
+                logger.error({
+                    email,
+                    errorMessage: error?.message,
+                    errorCode: error?.code,
+                    errorResponse: error?.response,
+                    errorCommand: error?.command,
+                }, "FALLO al enviar el email de verificacion");
+                // No lanzamos el error para no bloquear el registro,
+                // pero el detalle completo queda en los logs.
+            }
 
             userData.isVerified = false;
             userData.verificationCode = otpCode;

@@ -1,6 +1,6 @@
 import { invitationMongoDao } from "../dao/mongodb/invitation.dao.js";
 import { InvitationDao, InvitationDB } from "../types/invitation.types.js";
-import { sendOnboardingEmail } from "../utils/email.utils.js";
+// import { sendOnboardingEmail } from "../utils/email.utils.js";
 import { CustomError } from "../utils/custom-error.utils.js";
 import crypto from "crypto";
 import { UserRole } from "../types/user.types.js";
@@ -17,7 +17,7 @@ export default class InvitationService {
         const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 días
 
         await this.dao.create(email, token, expiresAt, role, restaurantId);
-        await sendOnboardingEmail(email, token);
+        // await sendOnboardingEmail(email, token);
 
         return { message: "Invitación enviada correctamente" };
     };

@@ -29,7 +29,13 @@ class UserController {
             const token = generateToken(userPayload, "7d");
             setCookieUser(res, token);
 
-            return httpResponse.Ok(res, { userPayload, redirect: '/menu' });
+            if (req.user.role === 'ADMIN' || req.user.role === 'OWNER') {
+                return res.redirect('http://localhost:3001');
+            }
+
+            return res.redirect('http://localhost:3000');
+
+            // return httpResponse.Ok(res, { userPayload, redirect: '/menu' });
         } catch (error) {
             next(error);
         }

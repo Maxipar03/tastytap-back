@@ -18,7 +18,7 @@ class OrderMongoDao extends MongoDao<OrderDB, CreateOrderDto> {
     };
 
     getOrdersGuest = async (guestId: string): Promise<OrderDB[]> => {
-        return (await this.model.find({ guestId }).lean()) as OrderDB[];
+        return (await this.model.find({ guestId }).lean()) as unknown as OrderDB[];
     }
 
     updateStatusItems = async (orderId: string | Types.ObjectId, itemId: string | Types.ObjectId, newStatus: string, deletionReason?: string, checkStatus?: string): Promise<OrderDB | null> => {
@@ -61,7 +61,7 @@ class OrderMongoDao extends MongoDao<OrderDB, CreateOrderDto> {
         const query: any = { restaurant: restaurant };
 
         query.status = { $ne: "completed" };
-        return (await this.model.find(query).lean()) as OrderDB[];
+        return (await this.model.find(query).lean()) as unknown as OrderDB[];
     };
 
     getByRestaurantId = async (
@@ -130,7 +130,7 @@ class OrderMongoDao extends MongoDao<OrderDB, CreateOrderDto> {
 
         const query: any = { restaurant: restaurant };
         query.status = { $in: ["PENDING", "READY", "DELIVERED"] };
-        return (await this.model.find(query).sort({ createdAt: -1 }).lean()) as OrderDB[];
+        return (await this.model.find(query).sort({ createdAt: -1 }).lean()) as unknown as OrderDB[];
     };
 }
 

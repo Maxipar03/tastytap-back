@@ -53,10 +53,10 @@ class FoodMongoDao extends MongoDao<FoodDB, CreateFoodDto> {
     async getByRestaurant(restaurant: string | Types.ObjectId, filters: MenuFiltersDto = {}): Promise<FoodDB[]> {
         const menuMatch = this.buildMenuQuery(filters);
 
-        return await this.model.find({
+        return (await this.model.find({
             restaurant: restaurant,
             ...menuMatch
-        }).lean();
+        }).lean()) as unknown as FoodDB[];
     }
 }
 
