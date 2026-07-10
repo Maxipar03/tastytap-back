@@ -170,26 +170,32 @@ export default class OrderService {
 
         // 2. OPERACIONES POST-PERSISTENCIA (Servicios Externos)
         try {
+            // Invalidar caché antes de crear el payment intent para evitar que
+            // stripeService.createPaymentIntent (que llama a getById internamente)
+            // cachee la orden sin el paymentSecret
+            await this.invalidateOrderCache(newOrder._id.toString(), body.restaurant.toString());
+
             const paymentData = await stripeService.createPaymentIntent(newOrder._id.toString());
 
             if (!paymentData || !paymentData.paymentIntentId || !paymentData.clientSecret) throw new NotFoundError("Failed to initialize payment");
 
-            await this.dao.update(newOrder._id, {
+            const updatedOrder = await this.dao.update(newOrder._id, {
                 paymentIntentId: paymentData.paymentIntentId,
                 paymentSecret: paymentData.clientSecret
             });
 
+            // Invalidar caché nuevamente para que el checkout lea la orden actualizada con paymentSecret
+            await this.invalidateOrderCache(newOrder._id.toString(), body.restaurant.toString());
+
             orderEvents.emitOrderCreated({
                 orderId: newOrder._id,
-                order: newOrder,
+                order: updatedOrder ?? newOrder,
                 restaurant: body.restaurant,
                 timestamp: new Date()
             });
 
-            await this.invalidateOrderCache(newOrder._id.toString(), body.restaurant.toString());
-
             return {
-                order: newOrder,
+                order: updatedOrder ?? newOrder,
                 paymentIntent: paymentData
             };
 

@@ -54,6 +54,8 @@ export default class StripeService {
                 stripeAmount: amount
             }, "Creando payment intent en Stripe");
 
+            console.log("precio", amount)
+
             // Crear el payment intent
             const paymentIntent = await stripe.paymentIntents.create({
                 amount,
