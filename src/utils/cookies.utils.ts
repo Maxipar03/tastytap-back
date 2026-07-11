@@ -3,8 +3,9 @@ import { Response, CookieOptions } from "express";
 // Configuracion base de todas las cookies
 const baseCookieOptions: CookieOptions = {
     httpOnly: true,
-    secure: true,
+    secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
+    domain: process.env.COOKIE_DOMAIN || undefined,
 };
 
 // Crear y asignar cookie
