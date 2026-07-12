@@ -39,8 +39,6 @@ export const initSocketIO = (httpServer: HttpServer) => {
     socket.on("join-restaurant", (payload) => {
 
       const { restaurant, role } = payload;
-
-      console.log("payload:", payload);
       
       if (role === "waiter" || role === "manager" || role === "chef") {
         socket.join(`restaurant-${restaurant}`);
@@ -50,8 +48,14 @@ export const initSocketIO = (httpServer: HttpServer) => {
       }
     });
 
-    socket.on("join-guest", ({ guestId }) => {
+    socket.on("join-order", (id: string) => {
+      socket.join(`order-${id}`);
+      console.log(`Cliente unido a la orden ${id}`);
+    })
+
+    socket.on("join-guest", (guestId: string) => {
       socket.join(`guest-${guestId}`);
+      console.log(`Cliente invitado ${guestId}`);
     });
 
     socket.on("disconnect", () => {

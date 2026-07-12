@@ -112,7 +112,15 @@ const OrderSchema = new Schema<OrderDB>({
         type: String,
         sparse: true
     },
-
+    pendingAt: {
+        type: Date,
+    },
+    completedAt: {
+        type: Date,
+    },
+    deliveredAt: {
+        type: Date
+    }
 }, {
     timestamps: true,
 });

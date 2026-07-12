@@ -32,6 +32,7 @@ class OrderEventEmitter extends EventEmitter {
     }
 
     emitOrderUpdated(payload: OrderUpdatedPayload) {
+        console.log(payload)
         this.emit("order:updated", payload);
     }
 

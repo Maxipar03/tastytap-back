@@ -9,7 +9,8 @@ interface JoinGuestPayload {
 
 export interface ClientToServerEvents {
     'join-restaurant': (payload: JoinRestaurantPayload) => void;
-    'join-guest': (payload: JoinGuestPayload) => void;
+    'join-guest': (guestId: string) => void;
+    'join-order': (id: string) => void;
 }
 
 export interface ServerToClientEvents {
